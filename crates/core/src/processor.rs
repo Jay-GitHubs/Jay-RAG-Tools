@@ -8,6 +8,19 @@ use crate::provider::VisionProvider;
 
 use std::path::{Path, PathBuf};
 
+/// Truncate a string to at most `max_bytes` bytes, ensuring the cut
+/// lands on a valid UTF-8 char boundary (safe for Thai multi-byte text).
+fn truncate_str(s: &str, max_bytes: usize) -> &str {
+    if s.len() <= max_bytes {
+        return s;
+    }
+    let mut end = max_bytes;
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    &s[..end]
+}
+
 /// Result of processing a single PDF.
 pub struct ProcessingResult {
     /// Path to the output enriched Markdown file.
@@ -136,7 +149,7 @@ async fn process_page_async(
             reporter.on_image_processed(
                 page_num + 1,
                 1,
-                &description[..description.len().min(50)],
+                truncate_str(&description, 80),
             );
 
             lines.push(format!("[IMAGE:{img_filename}]\n"));
@@ -226,7 +239,7 @@ async fn process_page_async(
                 reporter.on_image_processed(
                     page_num + 1,
                     img.index,
-                    &description[..description.len().min(50)],
+                    truncate_str(&description, 80),
                 );
 
                 lines.push(format!(
