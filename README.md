@@ -1,4 +1,4 @@
-# pdf-vision-rag 🇹🇭
+# JAY-RAG-TOOLS 🇹🇭
 
 > Thai-first PDF Vision Processor for RAG pipelines — extract text AND images from PDFs,
 > generate Thai descriptions using Vision LLMs, and display actual screenshots in Flowise chat.
@@ -13,7 +13,7 @@ For Thai device manuals, product guides, and technical documents, this means los
 
 ## The Solution
 
-`pdf-vision-rag` pre-processes PDFs using a Vision LLM to:
+`JAY-RAG-TOOLS` pre-processes PDFs using a Vision LLM to:
 1. **Extract and save** every image as a PNG file
 2. **Describe each image** in Thai using a Vision LLM
 3. **Embed `[IMAGE:filename.png]` tags** in the output Markdown
@@ -102,7 +102,7 @@ See [docs/flowise-integration.md](docs/flowise-integration.md) for full setup gu
 
 ## Why Not LlamaParse / Unstructured?
 
-| | LlamaParse | Unstructured | **pdf-vision-rag** |
+| | LlamaParse | Unstructured | **JAY-RAG-TOOLS** |
 |---|---|---|---|
 | Thai OCR quality | Good | Weak | Best (qwen2.5vl) |
 | Image display in chat | ❌ | ❌ | ✅ `[IMAGE:]` tags |
