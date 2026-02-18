@@ -42,8 +42,10 @@ export interface Job {
 
 export interface ProviderInfo {
   name: string;
+  display_name: string;
   default_model: string;
   models: string[];
+  cost_per_image_usd: number;
 }
 
 export interface LanguageInfo {

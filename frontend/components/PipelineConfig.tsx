@@ -54,7 +54,10 @@ export default function PipelineConfig({
           >
             {providers.map((p) => (
               <option key={p.name} value={p.name}>
-                {p.name}
+                {p.display_name || p.name}
+                {p.cost_per_image_usd > 0
+                  ? ` (~$${p.cost_per_image_usd}/img)`
+                  : " (Free)"}
               </option>
             ))}
           </select>

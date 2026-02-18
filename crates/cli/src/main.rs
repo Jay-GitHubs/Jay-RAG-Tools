@@ -34,7 +34,7 @@ struct ProcessArgs {
     output: PathBuf,
 
     /// Vision LLM provider
-    #[arg(short, long, default_value = "ollama", value_parser = ["ollama", "openai", "claude"])]
+    #[arg(short, long, default_value = "ollama", value_parser = ["ollama", "openai", "claude", "gemini", "xai", "groq"])]
     provider: String,
 
     /// Model name (default: provider-specific)
