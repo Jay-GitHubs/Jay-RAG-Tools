@@ -78,7 +78,7 @@ pub struct Job {
 
 impl Job {
     pub fn new(filename: String, config: JobConfig) -> Self {
-        let now = chrono_now();
+        let now = iso_now();
         Self {
             id: Uuid::new_v4(),
             filename,
@@ -93,10 +93,7 @@ impl Job {
     }
 }
 
-fn chrono_now() -> String {
-    // Simple ISO 8601 timestamp without chrono dependency
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default();
-    format!("{}Z", now.as_secs())
+/// ISO 8601 UTC timestamp, e.g. `2026-02-19T01:12:24Z`.
+pub fn iso_now() -> String {
+    chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
 }

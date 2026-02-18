@@ -1,4 +1,4 @@
-use super::models::{Job, JobConfig, JobProgress, JobResult, JobStatus};
+use super::models::{iso_now, Job, JobConfig, JobProgress, JobResult, JobStatus};
 use rusqlite::{params, Connection};
 use std::collections::HashMap;
 use std::path::Path;
@@ -38,7 +38,7 @@ impl JobQueue {
         )?;
 
         // Mark any stale 'processing' or 'pending' jobs as failed on restart
-        let now = now_timestamp();
+        let now = iso_now();
         conn.execute(
             "UPDATE jobs SET status = 'failed', error = 'Interrupted by server restart', updated_at = ?1
              WHERE status IN ('processing', 'pending')",
@@ -115,7 +115,7 @@ impl JobQueue {
         let db = self.db.lock().expect("db lock poisoned");
         db.execute(
             "UPDATE jobs SET status = ?1, updated_at = ?2 WHERE id = ?3",
-            params![status_to_str(&status), now_timestamp(), id.to_string()],
+            params![status_to_str(&status), iso_now(), id.to_string()],
         )
         .ok();
     }
@@ -129,7 +129,7 @@ impl JobQueue {
             let db = self.db.lock().expect("db lock poisoned");
             db.execute(
                 "UPDATE jobs SET progress = ?1, updated_at = ?2 WHERE id = ?3",
-                params![progress_json, now_timestamp(), id.to_string()],
+                params![progress_json, iso_now(), id.to_string()],
             )
             .ok();
         }
@@ -147,7 +147,7 @@ impl JobQueue {
         let db = self.db.lock().expect("db lock poisoned");
         db.execute(
             "UPDATE jobs SET status = 'completed', result = ?1, updated_at = ?2 WHERE id = ?3",
-            params![result_json, now_timestamp(), id.to_string()],
+            params![result_json, iso_now(), id.to_string()],
         )
         .ok();
     }
@@ -157,7 +157,7 @@ impl JobQueue {
         let db = self.db.lock().expect("db lock poisoned");
         db.execute(
             "UPDATE jobs SET status = 'failed', error = ?1, updated_at = ?2 WHERE id = ?3",
-            params![error, now_timestamp(), id.to_string()],
+            params![error, iso_now(), id.to_string()],
         )
         .ok();
     }
@@ -229,13 +229,6 @@ fn parse_status(s: &str) -> JobStatus {
         "failed" => JobStatus::Failed,
         _ => JobStatus::Failed,
     }
-}
-
-fn now_timestamp() -> String {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default();
-    format!("{}Z", now.as_secs())
 }
 
 /// Fallback config when deserialization fails (should not happen in practice).
