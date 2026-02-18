@@ -133,8 +133,10 @@ async fn process_page_async(
                 .ask(&img_b64, prompts.full_page, config.max_retries)
                 .await?;
 
+            let image_ref = format!("{doc_stem}/{img_filename}");
+
             metadata_catalog.push(ImageMetadata {
-                image_file: img_filename.clone(),
+                image_file: image_ref.clone(),
                 page: page_num + 1,
                 index: None,
                 image_type: ImageType::FullPage,
@@ -152,7 +154,7 @@ async fn process_page_async(
                 truncate_str(&description, 80),
             );
 
-            lines.push(format!("[IMAGE:{img_filename}]\n"));
+            lines.push(format!("[IMAGE:{image_ref}]\n"));
             lines.push(description);
         }
 
@@ -184,8 +186,10 @@ async fn process_page_async(
                         .ask(&b64, prompts.table_extraction, config.max_retries)
                         .await?;
 
+                    let image_ref = format!("{doc_stem}/{filename}");
+
                     metadata_catalog.push(ImageMetadata {
-                        image_file: filename.clone(),
+                        image_file: image_ref.clone(),
                         page: page_num + 1,
                         index: None,
                         image_type: ImageType::TableRegion,
@@ -197,7 +201,7 @@ async fn process_page_async(
                         model: provider.model_name().to_string(),
                     });
 
-                    lines.push(format!("\n[IMAGE:{filename}]\n\n{description}\n"));
+                    lines.push(format!("\n[IMAGE:{image_ref}]\n\n{description}\n"));
                 }
             }
 
@@ -225,8 +229,10 @@ async fn process_page_async(
                     .ask(&img.base64, prompts.single_image, config.max_retries)
                     .await?;
 
+                let image_ref = format!("{doc_stem}/{img_filename}");
+
                 metadata_catalog.push(ImageMetadata {
-                    image_file: img_filename.clone(),
+                    image_file: image_ref.clone(),
                     page: page_num + 1,
                     index: Some(img.index),
                     image_type: ImageType::ExtractedImage,
@@ -245,7 +251,7 @@ async fn process_page_async(
                 );
 
                 lines.push(format!(
-                    "\n[IMAGE:{img_filename}]\n**[ภาพที่ {}]:** {description}\n",
+                    "\n[IMAGE:{image_ref}]\n**[ภาพที่ {}]:** {description}\n",
                     img.index
                 ));
             }
