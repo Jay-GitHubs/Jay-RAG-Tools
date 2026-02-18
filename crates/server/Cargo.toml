@@ -29,6 +29,9 @@ tracing = { workspace = true }
 # UUID
 uuid = { workspace = true }
 
+# Database
+rusqlite = { version = "0.32", features = ["bundled"] }
+
 # Internal
 jay-rag-core = { workspace = true }
 jay-rag-storage = { workspace = true }

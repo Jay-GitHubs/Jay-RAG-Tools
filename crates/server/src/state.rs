@@ -5,7 +5,7 @@ use std::sync::Arc;
 /// Shared application state.
 #[derive(Clone)]
 pub struct AppState {
-    /// In-memory job queue.
+    /// SQLite-backed job queue.
     pub job_queue: JobQueue,
     /// Directory for uploaded PDFs (temporary storage).
     pub upload_dir: PathBuf,
@@ -15,8 +15,11 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(upload_dir: PathBuf, output_dir: PathBuf) -> Arc<Self> {
+        let db_path = output_dir.join("jay-rag.db");
+        let job_queue = JobQueue::new(&db_path).expect("Failed to initialize job database");
+
         Arc::new(Self {
-            job_queue: JobQueue::new(),
+            job_queue,
             upload_dir,
             output_dir,
         })
