@@ -59,7 +59,7 @@ test.describe("Jobs List — SQLite Persistence", () => {
     await expect(completedRow.getByText("ollama")).toBeVisible();
 
     // Image count present
-    await expect(completedRow.getByText("4")).toBeVisible();
+    await expect(completedRow.getByRole("cell", { name: "4", exact: true })).toBeVisible();
 
     // "View" button for completed job
     await expect(
