@@ -4,6 +4,7 @@ import { use } from "react";
 import Link from "next/link";
 import JobProgressComponent from "@/components/JobProgress";
 import { useJob } from "@/hooks/useJobs";
+import { formatDateTime } from "@/lib/format";
 
 export default function JobDetailPage({
   params,
@@ -59,6 +60,14 @@ export default function JobDetailPage({
           <div>
             <span className="text-slate-500">Storage:</span>{" "}
             <span className="font-medium text-slate-900">{job.config.storage}</span>
+          </div>
+          <div>
+            <span className="text-slate-500">Created:</span>{" "}
+            <span className="font-medium text-slate-900">{formatDateTime(job.created_at)}</span>
+          </div>
+          <div>
+            <span className="text-slate-500">Updated:</span>{" "}
+            <span className="font-medium text-slate-900">{formatDateTime(job.updated_at)}</span>
           </div>
         </div>
       </div>

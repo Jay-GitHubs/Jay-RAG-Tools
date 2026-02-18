@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { Job, JobStatus } from "@/lib/types";
+import { timeAgo, formatDateTime } from "@/lib/format";
 
 const statusColors: Record<JobStatus, string> = {
   pending: "bg-amber-100 text-amber-800 border border-amber-200",
@@ -39,6 +40,7 @@ export default function JobList({ jobs, onDelete }: JobListProps) {
             <th className="pb-3 pr-4">Status</th>
             <th className="pb-3 pr-4">Provider</th>
             <th className="pb-3 pr-4">Images</th>
+            <th className="pb-3 pr-4">Created</th>
             <th className="pb-3">Actions</th>
           </tr>
         </thead>
@@ -77,6 +79,12 @@ export default function JobList({ jobs, onDelete }: JobListProps) {
               </td>
               <td className="py-3.5 pr-4 text-sm text-slate-700 tabular-nums">
                 {job.result?.image_count ?? "-"}
+              </td>
+              <td
+                className="py-3.5 pr-4 text-sm text-slate-500"
+                title={formatDateTime(job.created_at)}
+              >
+                {timeAgo(job.created_at)}
               </td>
               <td className="py-3.5">
                 <div className="flex gap-1.5">
