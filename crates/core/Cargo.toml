@@ -1,0 +1,39 @@
+[package]
+name = "jay-rag-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Core PDF processing engine for JAY-RAG-TOOLS"
+
+[dependencies]
+# PDF parsing
+pdfium-render = { version = "0.8", features = ["image", "thread_safe"] }
+
+# Image processing
+image = "0.25"
+
+# LLM client (multi-provider)
+genai = "0.5"
+
+# Async
+tokio = { workspace = true }
+async-trait = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+
+# HTTP client (for Ollama health check)
+reqwest = { version = "0.12", features = ["json"] }
+
+# Utils
+base64 = { workspace = true }
+uuid = { workspace = true }

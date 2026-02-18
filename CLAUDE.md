@@ -2,15 +2,19 @@
 
 ## Project Overview
 
-**JAY-RAG-TOOLS** is a Thai-first PDF pre-processing tool that extracts both text and
+**JAY-RAG-TOOLS v2.0** is a Thai-first PDF pre-processing platform that extracts text and
 images from PDF documents and converts them into enriched Markdown files suitable for
-RAG (Retrieval-Augmented Generation) pipelines — specifically Flowise.
+RAG (Retrieval-Augmented Generation) pipelines — including Flowise, AnythingLLM, Dify,
+and LangFlow.
 
-The core problem it solves: standard PDF loaders in RAG tools (Flowise, LangChain, etc.)
-drop images entirely. For Thai device manuals, product guides, and technical documents,
-50–80% of critical information is inside images, diagrams, and screenshots. This tool
-preserves that information using Vision LLMs and enables actual image display inside
-Flowise chat responses.
+v2.0 is a full Rust rewrite with a web dashboard, replacing the original Python CLI.
+It provides both a CLI tool and a web-based REST API + React dashboard for upload,
+pipeline configuration, real-time progress monitoring, and results viewing.
+
+The core problem it solves: standard PDF loaders in RAG tools drop images entirely.
+For Thai device manuals, product guides, and technical documents, 50–80% of critical
+information is inside images, diagrams, and screenshots. This tool preserves that
+information using Vision LLMs and enables actual image display inside chat responses.
 
 ---
 
@@ -18,18 +22,12 @@ Flowise chat responses.
 
 1. **Thai-first** — prompts and output are optimized for Thai language OCR and description
 2. **Privacy-first** — supports local Ollama models so bank/enterprise documents never leave the server
-3. **Image display in chat** — uses `[IMAGE:filename.png]` reference tags so Flowise can render actual screenshots in chat responses, not just text descriptions
+3. **Image display in chat** — uses `[IMAGE:filename.png]` reference tags so RAG platforms can render actual screenshots in chat responses
 4. **Multi-provider** — works with Ollama (local), OpenAI GPT-4o, and Anthropic Claude
-
-No existing open-source tool combines all four of these capabilities.
-
----
-
-## Target Users
-
-- Thai enterprises (banks, telecoms, government) using Flowise/RAG for internal knowledge bases
-- Organizations with Thai-language technical manuals, device guides, compliance documents
-- Privacy-sensitive environments that cannot send documents to cloud APIs
+5. **Multi-platform** — guides for Flowise, AnythingLLM, Dify, LangFlow
+6. **Performance** — Rust backend with async processing and concurrent LLM calls
+7. **Web Dashboard** — React/Next.js UI for upload, pipeline config, live progress
+8. **Flexible Storage** — Local filesystem, AWS S3, NFS/SMB
 
 ---
 
@@ -37,41 +35,82 @@ No existing open-source tool combines all four of these capabilities.
 
 | Layer | Technology |
 |---|---|
-| PDF parsing | PyMuPDF (fitz) |
+| Backend language | Rust (edition 2024) |
+| PDF parsing | pdfium-render 0.8 |
+| Vision LLM client | genai 0.5 (multi-provider) |
+| Web framework | Axum 0.8 |
+| Frontend | React / Next.js (App Router) + Tailwind CSS |
+| Storage | Local filesystem, AWS S3 (aws-sdk-s3), NFS/SMB |
+| CLI framework | clap 4 |
+| Progress bars | indicatif 0.17 |
 | Vision LLM — local | Ollama (qwen2.5vl, llama3.2-vision, minicpm-v) |
 | Vision LLM — cloud | OpenAI GPT-4o, Anthropic Claude |
 | Output format | Markdown (.md) + PNG images + JSON metadata |
-| RAG integration | Flowise (Text File Loader → Document Store → Vector DB) |
-| Embeddings | Ollama nomic-embed-text or OpenAI text-embedding-3-small |
-| Vector DB | Qdrant, Chroma, PGVector |
 
 ---
 
 ## Project Structure
 
 ```
-JAY-RAG-TOOLS/
-├── CLAUDE.md                    ← You are here — read this first
-├── README.md                    ← User-facing documentation
-├── requirements.txt             ← Python dependencies
-├── src/
-│   ├── main.py                  ← CLI entry point
-│   ├── processor.py             ← Core PDF processing logic
-│   ├── providers/
-│   │   ├── __init__.py
-│   │   ├── base.py              ← Abstract base class for vision providers
-│   │   ├── ollama_provider.py   ← Ollama implementation
-│   │   ├── openai_provider.py   ← OpenAI implementation
-│   │   └── claude_provider.py   ← Anthropic Claude implementation
-│   ├── prompts.py               ← All Thai/English prompts (centralized)
-│   └── utils.py                 ← Image helpers, file utils
-├── docs/
-│   ├── flowise-integration.md   ← How to use output in Flowise
-│   └── providers.md             ← Provider setup guide
-├── tests/
-│   └── test_processor.py        ← Basic tests
-└── output/                      ← Default output directory (gitignored)
-    └── images/
+jay-rag-tools/
+├── Cargo.toml                    # Workspace root
+├── crates/
+│   ├── core/                     # Processing engine (PDF, providers, prompts)
+│   │   └── src/
+│   │       ├── lib.rs
+│   │       ├── config.rs         # ProcessingConfig, Language enum
+│   │       ├── error.rs          # CoreError via thiserror
+│   │       ├── pdf.rs            # pdfium-render: coverage, render, extract
+│   │       ├── processor.rs      # process_pdf() — Strategy A/B logic
+│   │       ├── prompts.rs        # Thai/English prompt constants
+│   │       ├── metadata.rs       # ImageMetadata struct, JSON
+│   │       ├── progress.rs       # ProgressReporter trait
+│   │       ├── table.rs          # Table detection heuristics
+│   │       └── provider/
+│   │           ├── mod.rs        # VisionProvider trait + factory
+│   │           ├── ollama.rs     # Ollama via genai
+│   │           ├── openai.rs     # OpenAI via genai
+│   │           └── anthropic.rs  # Claude via genai
+│   │
+│   ├── storage/                  # Storage abstraction
+│   │   └── src/
+│   │       ├── lib.rs
+│   │       ├── error.rs
+│   │       ├── traits.rs         # StorageBackend trait
+│   │       ├── local.rs          # Local filesystem
+│   │       ├── s3.rs             # AWS S3
+│   │       └── nfs.rs            # NFS/SMB (mounted path)
+│   │
+│   ├── server/                   # Axum API server
+│   │   └── src/
+│   │       ├── lib.rs
+│   │       ├── app.rs            # Router + middleware
+│   │       ├── error.rs          # API errors → JSON
+│   │       ├── state.rs          # AppState
+│   │       ├── ws.rs             # WebSocket progress
+│   │       ├── routes/           # REST endpoints
+│   │       └── jobs/             # Job queue + runner
+│   │
+│   └── cli/                      # CLI binary
+│       └── src/main.rs           # clap: "process" + "serve"
+│
+├── frontend/                     # React/Next.js dashboard
+│   └── app/
+│       ├── page.tsx              # Dashboard home
+│       ├── upload/page.tsx       # Upload + pipeline config
+│       ├── jobs/page.tsx         # Job list
+│       ├── jobs/[id]/page.tsx    # Live progress
+│       └── results/[id]/page.tsx # Markdown viewer + gallery
+│
+├── docs/                         # RAG platform integration guides
+│   ├── flowise-integration.md
+│   ├── anythingllm-integration.md
+│   ├── dify-integration.md
+│   └── langflow-integration.md
+│
+├── src/                          # Legacy Python source (v1.0)
+├── CLAUDE.md                     # ← You are here
+└── README.md
 ```
 
 ---
@@ -84,128 +123,103 @@ When the processor encounters an image in the PDF, it:
 2. Sends the image to a Vision LLM to generate a Thai description
 3. Embeds `[IMAGE:filename.png]` + the description into the output Markdown
 
-When Flowise retrieves a chunk containing `[IMAGE:filename.png]`, the system prompt
-instructs the LLM to convert this tag into an HTML `<img>` tag pointing to the static
-image server. This allows users to see actual screenshots from the manual in the chat UI.
+RAG platforms retrieve chunks containing these tags, and the system prompt instructs
+the LLM to convert them into HTML `<img>` tags pointing to the static image server.
 
 ### Two Processing Strategies (auto-selected per page)
 - **Strategy A — Full page render:** If >50% of the page area is images, the entire page
-  is rendered as a PNG and sent to the vision LLM for full transcription. Best for
-  diagram-heavy or screenshot-heavy pages.
-- **Strategy B — Mixed page:** Text is extracted normally via PyMuPDF. Individual images
-  are extracted separately and described by the vision LLM. Best for pages that are
-  mostly text with some supporting images.
+  is rendered as a PNG and sent to the vision LLM for full transcription.
+- **Strategy B — Mixed page:** Text is extracted via pdfium-render. Individual images
+  are extracted separately and described by the vision LLM.
 
-### Image Coverage Threshold
-`PAGE_AS_IMAGE_THRESHOLD = 0.5` — configurable constant. Pages where images cover
-more than 50% of the area trigger Strategy A.
+### Architecture: Sync PDF + Async LLM
+PdfDocument from pdfium-render is not Send/Sync. The processor extracts all page data
+synchronously in `spawn_blocking`, then makes async LLM calls on the extracted data.
+This keeps the pdfium types confined to a single thread while allowing concurrent I/O.
 
-### Metadata Catalog
-Every processed image is recorded in `{doc_stem}_images_metadata.json`:
-```json
-{
-  "image_file": "manual_page_003_img1.png",
-  "page": 3,
-  "type": "extracted_image",
-  "description": "ภาพหน้าจอแสดงเมนูตั้งค่า Wi-Fi...",
-  "source_doc": "manual",
-  "provider": "ollama",
-  "model": "qwen2.5vl"
-}
-```
-This catalog enables future features like direct image search, image-only retrieval,
-and audit trails.
+### Table Extraction
+When enabled (`--tables` flag or config), the processor uses text analysis heuristics
+to detect table-like content, then sends the page to the Vision LLM with a specialized
+table extraction prompt to produce Markdown tables.
 
 ---
 
-## Current Features (v1.0)
+## Features (v2.0)
 
-- [x] PDF text extraction via PyMuPDF
-- [x] Image extraction and saving as PNG
-- [x] Full-page render for image-heavy pages
-- [x] Vision LLM description generation (Thai prompts)
-- [x] Multi-provider support: Ollama, OpenAI, Claude
+- [x] Full Rust rewrite with workspace architecture
+- [x] PDF text extraction via pdfium-render
+- [x] Image extraction and full-page rendering
+- [x] Vision LLM description (Thai/English prompts)
+- [x] Multi-provider: Ollama, OpenAI, Claude (via genai crate)
 - [x] `[IMAGE:filename.png]` reference tags in output Markdown
 - [x] JSON metadata catalog per document
-- [x] CLI with `--input`, `--output`, `--provider`, `--model` flags
+- [x] CLI with `process` and `serve` subcommands
 - [x] Batch processing (folder of PDFs)
-- [x] Provider availability check on startup
-
----
-
-## Planned Features (Roadmap — discuss with developer before implementing)
-
-- [ ] **Web UI** — Simple web interface to upload PDFs and monitor processing progress
-- [ ] **API server** — FastAPI REST endpoint so Flowise can trigger processing directly
-- [ ] **Flowise custom node** — Native Flowise node that wraps this tool
-- [ ] **Table extraction** — Detect and convert tables to Markdown format
-- [ ] **Multi-language support** — Add language flag `--lang en|th|zh` to switch prompts
-- [ ] **Incremental processing** — Skip already-processed pages (resume on failure)
-- [ ] **Confidence scoring** — Vision LLM confidence score per image description
-- [ ] **Image deduplication** — Skip near-identical images across pages
-- [ ] **Progress webhook** — POST progress updates to a URL during batch processing
-- [ ] **Docker image** — Containerized deployment with Ollama bundled
-- [ ] **Config file** — YAML config instead of CLI flags for complex setups
+- [x] Axum REST API with WebSocket progress
+- [x] React/Next.js web dashboard
+- [x] Storage abstraction: Local, S3, NFS/SMB
+- [x] Table extraction via Vision LLM
+- [x] Multi-platform RAG guides (Flowise, AnythingLLM, Dify, LangFlow)
 
 ---
 
 ## Key Design Decisions
 
-1. **Markdown output, not JSON** — Flowise Text File Loader ingests `.md` natively.
-   JSON would require a custom loader.
-2. **`[IMAGE:]` tags over base64 embedding** — Embedding images as base64 in Markdown
-   would make files enormous and slow to embed. Tags keep the Markdown small while
-   enabling image display via a static server.
-3. **Per-provider modules** — Each provider is isolated so adding a new provider
-   (e.g., Google Gemini) only requires adding one new file in `providers/`.
-4. **Thai prompts hardcoded** — Current version assumes Thai documents. Multi-language
-   support is planned but not yet implemented.
-5. **PyMuPDF over pdfplumber** — PyMuPDF is faster, handles more PDF variants, and
-   provides precise image bounding boxes needed for coverage calculation.
+1. **Rust over Python** — 10-100x faster PDF parsing, true concurrency, single binary deployment
+2. **pdfium-render over PyMuPDF** — Rust-native, MIT licensed, enterprise-safe
+3. **genai crate** — Single client for Ollama/OpenAI/Claude, auto-detects API keys
+4. **spawn_blocking for PDF** — PdfDocument is !Send; sync extraction + async LLM calls
+5. **Markdown output** — RAG platforms ingest `.md` natively via text file loaders
+6. **`[IMAGE:]` tags** — Keep Markdown small; serve images via static HTTP
+7. **In-memory job queue** — Sufficient for v2.0; SQLite persistence planned later
+8. **Workspace crates** — core/storage/server/cli are independently compilable
 
 ---
 
 ## Environment Variables
 
 ```bash
-OPENAI_API_KEY=sk-...          # Required for --provider openai
-ANTHROPIC_API_KEY=sk-ant-...   # Required for --provider claude
-OLLAMA_HOST=http://localhost:11434  # Optional, default shown
+OPENAI_API_KEY=sk-...              # Required for --provider openai
+ANTHROPIC_API_KEY=sk-ant-...       # Required for --provider claude
+OLLAMA_HOST=http://localhost:11434 # Optional, default shown
+RUST_LOG=info                      # Logging level
 ```
 
 ---
 
-## Running the Current Script
+## Running
 
 ```bash
-# Install
-pip install pymupdf ollama tqdm openai anthropic
+# Build
+cargo build --release
 
-# Ollama (local)
-ollama pull qwen2.5vl
-python src/main.py --input docs/manual.pdf --provider ollama --model qwen2.5vl
+# CLI: Process a PDF
+./target/release/jay-rag process --input manual.pdf --provider ollama --model qwen2.5vl
 
-# OpenAI
-export OPENAI_API_KEY="sk-..."
-python src/main.py --input docs/manual.pdf --provider openai
+# CLI: Start web dashboard + API
+./target/release/jay-rag serve --bind 0.0.0.0:3000
 
-# Claude
-export ANTHROPIC_API_KEY="sk-ant-..."
-python src/main.py --input docs/manual.pdf --provider claude
+# API: Upload via curl
+curl -X POST localhost:3000/api/upload -F 'file=@manual.pdf' -F 'config={"provider":"ollama"}'
 ```
+
+Note: pdfium binary (libpdfium.dylib/libpdfium.so) must be available on the system
+or in the project directory. Download from https://github.com/nicklockwood/pdfium-binaries/releases
 
 ---
 
 ## Code Style & Conventions
 
-- Python 3.10+
-- Type hints on all function signatures
-- Docstrings on all public functions and classes
-- Constants in UPPER_SNAKE_CASE at top of each module
-- Provider classes extend `BaseVisionProvider` abstract class
-- All user-facing strings that appear in output Markdown should be in Thai
-- Error messages and logs can be in English
-- Keep CLI output clean — use tqdm for progress, avoid excessive print statements
+- Rust edition 2024
+- Type annotations on all public function signatures
+- Doc comments on all public items
+- Constants in UPPER_SNAKE_CASE
+- Provider implementations in `crates/core/src/provider/`
+- All user-facing strings in output Markdown should be in Thai (configurable via `--lang`)
+- Error messages and logs in English
+- Use `tracing` for structured logging
+- Use `indicatif` for CLI progress bars
+- Frontend: TypeScript strict mode, Tailwind CSS, React Query for data fetching
 
 ## Git Workflow
 See `.claude/git-flow.md` for full branching, commit, and PR rules.

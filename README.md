@@ -1,7 +1,8 @@
-# JAY-RAG-TOOLS 🇹🇭
+# JAY-RAG-TOOLS v2.0
 
 > Thai-first PDF Vision Processor for RAG pipelines — extract text AND images from PDFs,
-> generate Thai descriptions using Vision LLMs, and display actual screenshots in Flowise chat.
+> generate Thai descriptions using Vision LLMs, and display actual screenshots in chat.
+> Now with a Rust backend, web dashboard, and multi-platform RAG support.
 
 ---
 
@@ -13,34 +14,48 @@ For Thai device manuals, product guides, and technical documents, this means los
 
 ## The Solution
 
-`JAY-RAG-TOOLS` pre-processes PDFs using a Vision LLM to:
+**JAY-RAG-TOOLS** pre-processes PDFs using a Vision LLM to:
 1. **Extract and save** every image as a PNG file
 2. **Describe each image** in Thai using a Vision LLM
 3. **Embed `[IMAGE:filename.png]` tags** in the output Markdown
-4. **Output enriched `.md`** ready to load into Flowise Document Store
+4. **Output enriched `.md`** ready to load into any RAG platform
 
-When a user asks a question and a chunk with `[IMAGE:...]` is retrieved, Flowise renders
-the actual screenshot inline in the chat response.
+v2.0 adds a **web dashboard** for upload and monitoring, **table extraction**,
+**flexible storage** (Local/S3/NFS), and guides for multiple RAG platforms.
 
 ---
 
 ## Quick Start
 
+### Prerequisites
+
+- Rust toolchain (`rustup` — https://rustup.rs)
+- pdfium library ([download binaries](https://github.com/nicklockwood/pdfium-binaries/releases))
+- Ollama (for local processing) or OpenAI/Claude API key
+
+### Build & Run
+
 ```bash
-pip install pymupdf ollama tqdm
+# Build
+cargo build --release
 
 # Pull a Thai-capable vision model
 ollama pull qwen2.5vl
 
-# Process your PDF
-python src/main.py --input manual.pdf --provider ollama --model qwen2.5vl
+# Process a PDF via CLI
+./target/release/jay-rag process --input manual.pdf --provider ollama --model qwen2.5vl
+
+# Start the web dashboard
+./target/release/jay-rag serve --bind 0.0.0.0:3000
+# Open http://localhost:3000 in your browser
 ```
 
-Output:
+### Output
+
 ```
 output/
-  manual_enriched.md              ← Load into Flowise
-  manual_images_metadata.json     ← Image catalog
+  manual_enriched.md              <- Load into your RAG platform
+  manual_images_metadata.json     <- Image catalog
   images/manual/
     manual_page_001_full.png
     manual_page_003_img1.png
@@ -49,54 +64,150 @@ output/
 
 ---
 
-## Supported Vision Providers
+## Web Dashboard
 
-| Provider | Model | Thai Quality | Cost | Privacy |
-|---|---|---|---|---|
-| `ollama` | qwen2.5vl, qwen2.5vl:72b | ⭐⭐⭐⭐ | Free | ✅ Local |
-| `ollama` | llama3.2-vision | ⭐⭐⭐ | Free | ✅ Local |
-| `openai` | gpt-4o | ⭐⭐⭐⭐⭐ | ~$0.01/page | ❌ Cloud |
-| `claude` | claude-opus-4-6 | ⭐⭐⭐⭐⭐ | ~$0.01/page | ❌ Cloud |
+The web dashboard provides a browser-based interface for PDF processing:
 
-For **enterprise/bank use cases**, use Ollama to keep documents local.
-
----
-
-## Usage
+- **Upload** — Drag-and-drop PDF upload with pipeline configuration
+- **Pipeline Config** — Select provider, model, language, storage backend
+- **Live Progress** — Real-time progress via WebSocket
+- **Results Viewer** — Rendered Markdown with inline images + image gallery
 
 ```bash
-# Ollama (local, free, private)
-python src/main.py --input manual.pdf --provider ollama --model qwen2.5vl
+# Start the server
+./target/release/jay-rag serve --bind 0.0.0.0:3000
 
-# OpenAI GPT-4o
-export OPENAI_API_KEY="sk-..."
-python src/main.py --input manual.pdf --provider openai
+# Upload via API
+curl -X POST localhost:3000/api/upload \
+  -F 'file=@manual.pdf' \
+  -F 'config={"provider":"ollama","model":"qwen2.5vl","language":"th"}'
 
-# Anthropic Claude
-export ANTHROPIC_API_KEY="sk-ant-..."
-python src/main.py --input manual.pdf --provider claude
-
-# Batch process a folder
-python src/main.py --input ./manuals/ --output ./output/ --provider ollama
-
-# Process specific page range
-python src/main.py --input manual.pdf --start-page 0 --end-page 10
+# Check job status
+curl localhost:3000/api/jobs
 ```
 
 ---
 
-## Flowise Integration
+## CLI Usage
 
-1. Run this script to generate `manual_enriched.md` and `images/` folder
-2. Serve the `images/` folder as static HTTP: `python3 -m http.server 8899`
-3. In Flowise **Document Store**: load `manual_enriched.md` via Text File Loader
-4. Add to your **System Prompt**:
-   ```
-   เมื่อพบ [IMAGE:filename.png] ให้แสดงเป็น <img src="http://localhost:8899/images/manual/filename.png" />
-   ```
-5. Users will see actual screenshots from the manual inline in chat responses
+```bash
+# Ollama (local, free, private)
+jay-rag process --input manual.pdf --provider ollama --model qwen2.5vl
 
-See [docs/flowise-integration.md](docs/flowise-integration.md) for full setup guide.
+# OpenAI GPT-4o
+export OPENAI_API_KEY="sk-..."
+jay-rag process --input manual.pdf --provider openai
+
+# Anthropic Claude
+export ANTHROPIC_API_KEY="sk-ant-..."
+jay-rag process --input manual.pdf --provider claude
+
+# Batch process a folder
+jay-rag process --input ./manuals/ --output ./output/ --provider ollama
+
+# Process specific page range
+jay-rag process --input manual.pdf --start-page 0 --end-page 10
+
+# Enable table extraction
+jay-rag process --input manual.pdf --provider ollama --tables
+
+# English documents
+jay-rag process --input english_manual.pdf --provider ollama --lang en
+```
+
+---
+
+## Supported Vision Providers
+
+| Provider | Model | Thai Quality | Cost | Privacy |
+|---|---|---|---|---|
+| `ollama` | qwen2.5vl | Excellent | Free | Local |
+| `ollama` | llama3.2-vision | Good | Free | Local |
+| `openai` | gpt-4o | Excellent | ~$0.01/page | Cloud |
+| `claude` | claude-opus-4-6 | Excellent | ~$0.01/page | Cloud |
+
+For **enterprise/bank use cases**, use Ollama to keep documents 100% local.
+
+---
+
+## RAG Platform Integration
+
+Guides for connecting processed output to popular RAG platforms:
+
+| Platform | Guide |
+|---|---|
+| Flowise | [docs/flowise-integration.md](docs/flowise-integration.md) |
+| AnythingLLM | [docs/anythingllm-integration.md](docs/anythingllm-integration.md) |
+| Dify | [docs/dify-integration.md](docs/dify-integration.md) |
+| LangFlow | [docs/langflow-integration.md](docs/langflow-integration.md) |
+
+### Quick Flowise Setup
+
+1. Process your PDF: `jay-rag process --input manual.pdf --provider ollama`
+2. Start the server: `jay-rag serve --bind 0.0.0.0:3000`
+3. In Flowise Document Store: load `manual_enriched.md` via Text File Loader
+4. Add to System Prompt:
+   ```
+   เมื่อพบ [IMAGE:filename.png] ให้แสดงเป็น <img src="http://localhost:3000/images/manual/filename.png" />
+   ```
+5. Users see actual screenshots inline in chat responses
+
+---
+
+## Storage Backends
+
+| Backend | Use Case |
+|---|---|
+| `local` (default) | Development, single-server deployment |
+| `s3` | Cloud deployment, CDN-backed image serving |
+| `nfs` | Enterprise NAS/SAN shared storage |
+
+```bash
+# S3 storage
+jay-rag process --input manual.pdf --storage s3 --s3-bucket my-bucket --s3-prefix rag-output/
+
+# NFS storage (must be pre-mounted)
+jay-rag process --input manual.pdf --storage nfs --storage-path /mnt/nfs/output
+```
+
+---
+
+## API Endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/api/upload` | Upload PDF + config |
+| GET | `/api/jobs` | List all jobs |
+| GET | `/api/jobs/:id` | Job detail + progress |
+| DELETE | `/api/jobs/:id` | Cancel/remove job |
+| GET | `/api/results/:id` | Get output files |
+| GET | `/api/config` | Available providers/models |
+| GET | `/api/health` | Health check |
+| WS | `/ws/:job_id` | Real-time progress stream |
+
+---
+
+## Architecture
+
+```
+                    +-----------------+
+                    |   Frontend      |
+                    |  (React/Next.js)|
+                    +--------+--------+
+                             |
+                    +--------v--------+
+                    |   Axum Server   |
+                    | (REST + WebSocket)
+                    +--------+--------+
+                             |
+              +--------------+--------------+
+              |              |              |
+     +--------v---+  +------v------+  +----v-------+
+     |   Core     |  |   Storage   |  |   Jobs     |
+     | (PDF +     |  | (Local/S3/  |  | (Queue +   |
+     |  Providers)|  |  NFS)       |  |  Runner)   |
+     +------------+  +-------------+  +------------+
+```
 
 ---
 
@@ -104,32 +215,22 @@ See [docs/flowise-integration.md](docs/flowise-integration.md) for full setup gu
 
 | | LlamaParse | Unstructured | **JAY-RAG-TOOLS** |
 |---|---|---|---|
-| Thai OCR quality | Good | Weak | Best (qwen2.5vl) |
-| Image display in chat | ❌ | ❌ | ✅ `[IMAGE:]` tags |
-| Fully local/private | ❌ Cloud | ❌ Cloud | ✅ Ollama |
-| Free | ❌ $3/1k pages | ❌ Paid | ✅ Free |
-| Custom Thai prompts | ❌ | ❌ | ✅ |
-
----
-
-## Roadmap
-
-- [ ] Web UI for PDF upload and processing monitor
-- [ ] FastAPI server for Flowise webhook integration
-- [ ] Native Flowise custom node
-- [ ] Table extraction to Markdown
-- [ ] Multi-language support (`--lang th|en|zh`)
-- [ ] Docker image with Ollama bundled
-- [ ] Incremental processing (resume on failure)
+| Thai OCR quality | Good | Weak | Excellent (qwen2.5vl) |
+| Image display in chat | No | No | Yes (`[IMAGE:]` tags) |
+| Fully local/private | No (Cloud) | No (Cloud) | Yes (Ollama) |
+| Free | No ($3/1k pages) | No (Paid) | Yes |
+| Web dashboard | No | No | Yes |
+| Table extraction | Yes | Yes | Yes (Vision LLM) |
+| Multi-platform RAG | No | No | Yes (4 platforms) |
 
 ---
 
 ## Requirements
 
-- Python 3.10+
-- `pip install pymupdf tqdm`
-- One of: `ollama` / `openai` / `anthropic` package
-- For Ollama: Ollama running locally with a vision model pulled
+- Rust 1.75+ (edition 2024)
+- pdfium library binary (libpdfium.dylib / libpdfium.so)
+- One of: Ollama running locally / OpenAI API key / Anthropic API key
+- Node.js 18+ (for frontend development only)
 
 ---
 

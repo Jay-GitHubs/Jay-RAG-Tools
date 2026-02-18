@@ -1,4 +1,8 @@
-# Python
+# Rust
+target/
+Cargo.lock
+
+# Python (legacy v1.0)
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -7,8 +11,17 @@ venv/
 dist/
 build/
 
+# Node.js (frontend)
+node_modules/
+frontend/.next/
+frontend/out/
+
 # Output (don't commit processed files)
 output/
+
+# pdfium library binaries
+libpdfium.*
+pdfium.dll
 
 # Environment
 .env
