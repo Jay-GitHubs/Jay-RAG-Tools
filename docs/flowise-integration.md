@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide explains how to connect `pdf-vision-rag` output into a Flowise RAG pipeline
+This guide explains how to connect `JAY-RAG-TOOLS` output into a Flowise RAG pipeline
 so that users see actual screenshots from the manual inline in chat responses.
 
 ---
