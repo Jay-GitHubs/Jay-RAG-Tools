@@ -84,11 +84,20 @@ test.describe("Jobs List — SQLite Persistence", () => {
     await page.goto("/jobs");
     await expect(page.locator("table")).toBeVisible();
 
-    // Each job should have a row with its truncated ID visible
-    for (const job of jobs) {
+    // Check that each job on the first page (up to 10) has a visible row
+    const firstPage = jobs.slice(0, 10);
+    for (const job of firstPage) {
       const idPrefix = job.id.slice(0, 8);
       const row = page.locator("tr", { hasText: idPrefix });
       await expect(row).toBeVisible();
+    }
+
+    // If more than 10 jobs, pagination controls should be visible
+    if (jobs.length > 10) {
+      await expect(page.getByText(/Showing 1–10 of \d+/)).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Next" })
+      ).toBeVisible();
     }
   });
 });
