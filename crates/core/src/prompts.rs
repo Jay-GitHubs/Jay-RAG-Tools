@@ -36,22 +36,29 @@ button labels, arrows, step indicators, or visual instructions. \
 If there is text in the image, transcribe it. \
 Be specific and technical. Output as a short paragraph.";
 
-/// Thai prompt for table extraction.
+/// Thai prompt for table extraction (full-page content + table formatting).
 pub const TH_TABLE_EXTRACTION: &str = "\
-ภาพนี้มีตาราง กรุณาแปลงตารางเป็นรูปแบบ Markdown Table\n\
-- คงข้อความภาษาไทยไว้ทั้งหมด\n\
-- ใส่หัวคอลัมน์ให้ครบถ้วน\n\
-- จัดเรียงข้อมูลในแต่ละเซลล์ให้ถูกต้อง\n\
-- ถ้ามีข้อมูลที่ไม่ชัดเจนให้ใส่ [ไม่ชัดเจน]\n\
-ให้ผลลัพธ์เป็น Markdown Table เท่านั้น ไม่ต้องอธิบายเพิ่มเติม";
+หน้านี้มาจากเอกสาร PDF ภาษาไทยและมีตารางอยู่ด้วย\n\
+กรุณาทำสิ่งต่อไปนี้:\n\
+1. คัดลอกข้อความทั้งหมดบนหน้านี้ (หัวข้อ ย่อหน้า รายการ) ให้ครบถ้วน\n\
+2. แปลงตารางทั้งหมดเป็นรูปแบบ Markdown Table โดย:\n\
+   - ใส่หัวคอลัมน์ให้ครบถ้วน\n\
+   - จัดเรียงข้อมูลในแต่ละเซลล์ให้ถูกต้อง\n\
+   - ถ้ามีข้อมูลที่ไม่ชัดเจนให้ใส่ [ไม่ชัดเจน]\n\
+3. จัดรูปแบบผลลัพธ์ทั้งหมดเป็น Markdown ที่สะอาด\n\
+คงข้อความภาษาไทยไว้ทั้งหมด ห้ามแปลภาษา";
 
-/// English prompt for table extraction.
+/// English prompt for table extraction (full-page content + table formatting).
 pub const EN_TABLE_EXTRACTION: &str = "\
-This image contains a table. Convert it to Markdown table format.\n\
-- Include all column headers\n\
-- Arrange cell data accurately\n\
-- If any data is unclear, use [unclear]\n\
-Output only the Markdown table, no additional explanation.";
+This page is from a PDF document and contains a table.\n\
+Please do the following:\n\
+1. Transcribe ALL text on this page (headings, paragraphs, lists) completely\n\
+2. Convert all tables to Markdown table format:\n\
+   - Include all column headers\n\
+   - Arrange cell data accurately\n\
+   - If any data is unclear, use [unclear]\n\
+3. Format the entire output as clean Markdown\n\
+Preserve all original text exactly as shown.";
 
 /// A set of prompts for a specific language.
 #[derive(Debug, Clone)]

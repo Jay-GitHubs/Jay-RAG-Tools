@@ -58,7 +58,7 @@ pub struct ProcessingConfig {
     /// Delay between retries in milliseconds (default: 2000).
     pub retry_delay_ms: u64,
 
-    /// Enable table extraction (default: false).
+    /// Enable table extraction (default: true).
     pub table_extraction: bool,
 }
 
@@ -71,7 +71,7 @@ impl Default for ProcessingConfig {
             language: Language::default(),
             max_retries: 3,
             retry_delay_ms: 2000,
-            table_extraction: false,
+            table_extraction: true,
         }
     }
 }

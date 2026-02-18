@@ -162,7 +162,9 @@ async fn process_page_async(
             table_candidate,
             table_img,
         } => {
-            if !text.is_empty() {
+            // When table detected, skip raw text — the LLM full-page extraction
+            // will include both regular text and properly formatted tables
+            if !table_candidate && !text.is_empty() {
                 lines.push(text);
             }
 

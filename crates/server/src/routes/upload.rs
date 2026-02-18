@@ -59,7 +59,7 @@ pub async fn upload_pdf(
             language: "th".to_string(),
             start_page: None,
             end_page: None,
-            table_extraction: false,
+            table_extraction: true,
             storage: "local".to_string(),
             s3_bucket: None,
             s3_prefix: None,
