@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
 import "./globals.css";
 import { Providers } from "./providers";
 
@@ -31,33 +32,33 @@ export default function RootLayout({
         <Providers>
           <nav className="bg-slate-900 text-white shadow-lg">
             <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-              <a href="/" className="flex items-center gap-3">
+              <Link href="/" className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center text-sm font-bold">
                   J
                 </div>
                 <span className="text-lg font-semibold tracking-tight">
                   JAY-RAG-TOOLS
                 </span>
-              </a>
+              </Link>
               <div className="flex gap-1">
-                <a
+                <Link
                   href="/"
                   className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
                 >
                   Dashboard
-                </a>
-                <a
+                </Link>
+                <Link
                   href="/upload"
                   className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
                 >
                   Upload
-                </a>
-                <a
+                </Link>
+                <Link
                   href="/jobs"
                   className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
                 >
                   Jobs
-                </a>
+                </Link>
               </div>
             </div>
           </nav>

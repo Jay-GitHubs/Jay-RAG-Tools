@@ -39,11 +39,34 @@ pub async fn get_job(
         .ok_or_else(|| ApiError::NotFound(format!("Job {id} not found")))
 }
 
-/// Delete/cancel a job.
+/// Delete/cancel a job and clean up associated files.
 pub async fn delete_job(
     Path(id): Path<Uuid>,
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<DeleteResponse>, ApiError> {
+    // Retrieve job before deletion so we can clean up files
+    let job = state
+        .job_queue
+        .get_job(&id)
+        .await
+        .ok_or_else(|| ApiError::NotFound(format!("Job {id} not found")))?;
+
+    // Clean up uploaded PDF
+    let pdf_path = state.upload_dir.join(format!("{id}.pdf"));
+    let _ = tokio::fs::remove_file(&pdf_path).await;
+
+    // Clean up output files if the job produced results
+    if let Some(result) = &job.result {
+        let _ = tokio::fs::remove_file(&result.markdown_path).await;
+        let _ = tokio::fs::remove_file(&result.metadata_path).await;
+
+        // Delete images directory: derive doc stem from filename
+        let doc_stem = job.filename.strip_suffix(".pdf").unwrap_or(&job.filename);
+        let images_dir = state.output_dir.join("images").join(doc_stem);
+        let _ = tokio::fs::remove_dir_all(&images_dir).await;
+    }
+
+    // Delete the DB row
     if state.job_queue.delete_job(&id).await {
         Ok(Json(DeleteResponse {
             message: format!("Job {id} deleted"),

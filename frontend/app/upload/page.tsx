@@ -16,6 +16,8 @@ export default function UploadPage() {
     language: "th",
     storage: "local",
     table_extraction: false,
+    start_page: "",
+    end_page: "",
     s3_bucket: "",
     s3_prefix: "",
     storage_path: "",
@@ -24,7 +26,11 @@ export default function UploadPage() {
   const handleSubmit = async () => {
     if (!file) return;
     try {
-      const result = await upload.mutateAsync({ file, config });
+      const { start_page, end_page, ...rest } = config;
+      const apiConfig: Record<string, unknown> = { ...rest };
+      if (start_page) apiConfig.start_page = Number(start_page);
+      if (end_page) apiConfig.end_page = Number(end_page);
+      const result = await upload.mutateAsync({ file, config: apiConfig });
       router.push(`/jobs/${result.job_id}`);
     } catch {
       // Error handled by react-query

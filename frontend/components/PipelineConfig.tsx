@@ -9,6 +9,8 @@ interface PipelineConfigProps {
     language: string;
     storage: string;
     table_extraction: boolean;
+    start_page: string;
+    end_page: string;
     s3_bucket: string;
     s3_prefix: string;
     storage_path: string;
@@ -109,6 +111,36 @@ export default function PipelineConfig({
               </option>
             ))}
           </select>
+        </div>
+      </div>
+
+      {/* Page range */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className={labelClasses}>Start Page</label>
+          <input
+            type="number"
+            min={1}
+            className={inputClasses}
+            value={config.start_page}
+            onChange={(e) =>
+              onChange({ ...config, start_page: e.target.value })
+            }
+            placeholder="First page (default: 1)"
+          />
+        </div>
+        <div>
+          <label className={labelClasses}>End Page</label>
+          <input
+            type="number"
+            min={1}
+            className={inputClasses}
+            value={config.end_page}
+            onChange={(e) =>
+              onChange({ ...config, end_page: e.target.value })
+            }
+            placeholder="Last page (default: all)"
+          />
         </div>
       </div>
 

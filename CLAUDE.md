@@ -171,7 +171,7 @@ table extraction prompt to produce Markdown tables.
 4. **spawn_blocking for PDF** — PdfDocument is !Send; sync extraction + async LLM calls
 5. **Markdown output** — RAG platforms ingest `.md` natively via text file loaders
 6. **`[IMAGE:]` tags** — Keep Markdown small; serve images via static HTTP
-7. **In-memory job queue** — Sufficient for v2.0; SQLite persistence planned later
+7. **SQLite-backed job queue** — Jobs persist across server restarts via rusqlite (WAL mode)
 8. **Workspace crates** — core/storage/server/cli are independently compilable
 
 ---
