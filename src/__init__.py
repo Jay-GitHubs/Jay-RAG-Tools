@@ -1,1 +1,1 @@
-"""pdf-vision-rag — Thai-first PDF Vision Processor for RAG pipelines."""
+"""JAY-RAG-TOOLS — Thai-first PDF Vision Processor for RAG pipelines."""
