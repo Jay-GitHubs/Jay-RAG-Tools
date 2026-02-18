@@ -1,8 +1,8 @@
+use axum::extract::DefaultBodyLimit;
 use axum::routing::{delete, get, post};
 use axum::Router;
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
-use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::services::{ServeDir, ServeFile};
 
 use crate::routes;
@@ -41,6 +41,6 @@ pub fn create_app(state: Arc<AppState>) -> Router {
         .nest_service("/images", images_service)
         .fallback_service(spa_service)
         .layer(CorsLayer::permissive())
-        .layer(RequestBodyLimitLayer::new(50 * 1024 * 1024)) // 50MB
+        .layer(DefaultBodyLimit::max(50 * 1024 * 1024)) // 50MB
         .with_state(state)
 }
