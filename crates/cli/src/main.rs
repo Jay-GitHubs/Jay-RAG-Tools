@@ -57,9 +57,9 @@ struct ProcessArgs {
     #[arg(long)]
     skip_check: bool,
 
-    /// Enable table extraction
+    /// Disable table extraction (enabled by default)
     #[arg(long)]
-    tables: bool,
+    no_tables: bool,
 }
 
 #[derive(Parser)]
@@ -153,7 +153,7 @@ async fn run_process(args: ProcessArgs) -> Result<()> {
 
     let config = ProcessingConfig {
         language: lang,
-        table_extraction: args.tables,
+        table_extraction: !args.no_tables,
         ..Default::default()
     };
 
