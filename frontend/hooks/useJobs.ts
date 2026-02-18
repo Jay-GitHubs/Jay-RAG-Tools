@@ -35,10 +35,15 @@ export function useUpload() {
     mutationFn: ({
       file,
       config,
+      onProgress,
     }: {
       file: File;
       config: Record<string, unknown>;
-    }) => api.uploadPdf(file, config),
+      onProgress?: (event: { loaded: number; total: number }) => void;
+    }) =>
+      onProgress
+        ? api.uploadPdfWithProgress(file, config, onProgress)
+        : api.uploadPdf(file, config),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
     },

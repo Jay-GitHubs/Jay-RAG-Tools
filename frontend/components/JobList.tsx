@@ -21,6 +21,7 @@ interface JobListProps {
 
 export default function JobList({ jobs, onDelete }: JobListProps) {
   const [page, setPage] = useState(0);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   // Reset to page 0 when jobs list length changes
   useEffect(() => {
@@ -123,14 +124,33 @@ export default function JobList({ jobs, onDelete }: JobListProps) {
                         Progress
                       </Link>
                     )}
-                    {onDelete && (
+                    {onDelete && pendingDeleteId === job.id ? (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-red-600 font-medium">Delete job &amp; files?</span>
+                        <button
+                          onClick={() => setPendingDeleteId(null)}
+                          className="px-2.5 py-1 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => {
+                            onDelete(job.id);
+                            setPendingDeleteId(null);
+                          }}
+                          className="px-2.5 py-1 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors"
+                        >
+                          Confirm
+                        </button>
+                      </div>
+                    ) : onDelete ? (
                       <button
-                        onClick={() => onDelete(job.id)}
+                        onClick={() => setPendingDeleteId(job.id)}
                         className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
                       >
                         Delete
                       </button>
-                    )}
+                    ) : null}
                   </div>
                 </td>
               </tr>

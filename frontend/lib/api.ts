@@ -34,6 +34,46 @@ export async function uploadPdf(
   return fetchJson("/api/upload", { method: "POST", body: formData });
 }
 
+export function uploadPdfWithProgress(
+  file: File,
+  config: Record<string, unknown>,
+  onProgress: (event: { loaded: number; total: number }) => void
+): Promise<UploadResponse> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("config", JSON.stringify(config));
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        onProgress({ loaded: e.loaded, total: e.total });
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText));
+        } catch {
+          reject(new Error("Invalid JSON response"));
+        }
+      } else {
+        try {
+          const body = JSON.parse(xhr.responseText);
+          reject(new Error(body.error || `HTTP ${xhr.status}`));
+        } catch {
+          reject(new Error(`HTTP ${xhr.status}`));
+        }
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("Network error"));
+    xhr.open("POST", `${API_BASE}/api/upload`);
+    xhr.send(formData);
+  });
+}
+
 export async function listJobs(): Promise<{ jobs: Job[] }> {
   return fetchJson("/api/jobs");
 }

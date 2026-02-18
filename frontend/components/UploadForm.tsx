@@ -6,26 +6,38 @@ interface UploadFormProps {
   onFileSelect: (file: File) => void;
 }
 
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+
 export default function UploadForm({ onFileSelect }: UploadFormProps) {
   const [dragOver, setDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const validateAndSelect = (file: File) => {
+    if (file.size > MAX_FILE_SIZE) {
+      setError(`File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum size is 50 MB.`);
+      setSelectedFile(null);
+      return;
+    }
+    setError(null);
+    setSelectedFile(file);
+    onFileSelect(file);
+  };
 
   const handleDrop = (e: DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files[0];
     if (file?.type === "application/pdf") {
-      setSelectedFile(file);
-      onFileSelect(file);
+      validateAndSelect(file);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setSelectedFile(file);
-      onFileSelect(file);
+      validateAndSelect(file);
     }
   };
 
@@ -78,6 +90,10 @@ export default function UploadForm({ onFileSelect }: UploadFormProps) {
           </p>
           <p className="text-slate-500 text-sm mt-1">Maximum file size: 50 MB</p>
         </div>
+      )}
+
+      {error && (
+        <p className="text-red-600 text-sm font-medium mt-3">{error}</p>
       )}
     </div>
   );
