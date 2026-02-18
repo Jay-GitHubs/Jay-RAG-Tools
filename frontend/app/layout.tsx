@@ -26,31 +26,42 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 min-h-screen`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-slate-50`}
       >
         <Providers>
-          <nav className="bg-white border-b shadow-sm">
-            <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-              <a href="/" className="text-xl font-bold text-gray-900">
-                JAY-RAG-TOOLS
+          <nav className="bg-slate-900 text-white shadow-lg">
+            <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+              <a href="/" className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center text-sm font-bold">
+                  J
+                </div>
+                <span className="text-lg font-semibold tracking-tight">
+                  JAY-RAG-TOOLS
+                </span>
               </a>
-              <div className="flex gap-6 text-sm">
-                <a href="/" className="text-gray-600 hover:text-gray-900">
+              <div className="flex gap-1">
+                <a
+                  href="/"
+                  className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                >
                   Dashboard
                 </a>
                 <a
                   href="/upload"
-                  className="text-gray-600 hover:text-gray-900"
+                  className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
                 >
                   Upload
                 </a>
-                <a href="/jobs" className="text-gray-600 hover:text-gray-900">
+                <a
+                  href="/jobs"
+                  className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                >
                   Jobs
                 </a>
               </div>
             </div>
           </nav>
-          <main className="max-w-7xl mx-auto px-4 py-6">{children}</main>
+          <main className="max-w-7xl mx-auto px-6 py-8">{children}</main>
         </Providers>
       </body>
     </html>

@@ -32,34 +32,43 @@ export default function UploadPage() {
   };
 
   return (
-    <div className="space-y-8 max-w-2xl">
+    <div className="space-y-8 max-w-3xl mx-auto">
       <div>
-        <h1 className="text-3xl font-bold">Upload PDF</h1>
-        <p className="text-gray-500 mt-1">
+        <h1 className="text-3xl font-bold text-slate-900">Upload PDF</h1>
+        <p className="text-slate-500 mt-1">
           Configure the processing pipeline and upload a PDF document.
         </p>
       </div>
 
-      <div className="bg-white rounded-xl p-6 shadow-sm border">
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
         <UploadForm onFileSelect={setFile} />
       </div>
 
-      <div className="bg-white rounded-xl p-6 shadow-sm border">
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
         <PipelineConfig config={config} onChange={setConfig} />
       </div>
 
       <button
         onClick={handleSubmit}
         disabled={!file || upload.isPending}
-        className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm text-base"
       >
-        {upload.isPending ? "Uploading..." : "Start Processing"}
+        {upload.isPending ? (
+          <span className="flex items-center justify-center gap-2">
+            <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+            Uploading...
+          </span>
+        ) : (
+          "Start Processing"
+        )}
       </button>
 
       {upload.isError && (
-        <p className="text-red-500 text-sm">
-          Error: {(upload.error as Error).message}
-        </p>
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-700 text-sm">
+            Error: {(upload.error as Error).message}
+          </p>
+        </div>
       )}
     </div>
   );

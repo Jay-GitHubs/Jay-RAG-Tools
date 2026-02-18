@@ -14,50 +14,59 @@ export default function JobDetailPage({
   const { data: job, isLoading } = useJob(id);
 
   if (isLoading) {
-    return <p className="text-gray-400">Loading...</p>;
+    return (
+      <div className="flex items-center gap-2 py-12 justify-center">
+        <div className="animate-spin h-5 w-5 border-2 border-indigo-500 border-t-transparent rounded-full" />
+        <span className="text-sm text-slate-500">Loading...</span>
+      </div>
+    );
   }
 
   if (!job) {
-    return <p className="text-red-500">Job not found.</p>;
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-600 font-medium">Job not found.</p>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-3xl mx-auto">
       <div>
-        <h1 className="text-3xl font-bold">{job.filename}</h1>
-        <p className="text-gray-500 mt-1">Job: {job.id}</p>
+        <h1 className="text-3xl font-bold text-slate-900">{job.filename}</h1>
+        <p className="text-slate-500 mt-1 font-mono text-sm">Job: {job.id}</p>
       </div>
 
       {/* Status */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border">
-        <h2 className="text-lg font-semibold mb-3">Status</h2>
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+        <h2 className="text-lg font-semibold text-slate-900 mb-4">Status</h2>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <span className="text-gray-500">Status:</span>{" "}
-            <span className="font-medium capitalize">{job.status}</span>
+            <span className="text-slate-500">Status:</span>{" "}
+            <span className="font-medium text-slate-900 capitalize">{job.status}</span>
           </div>
           <div>
-            <span className="text-gray-500">Provider:</span>{" "}
-            <span className="font-medium">
+            <span className="text-slate-500">Provider:</span>{" "}
+            <span className="font-medium text-slate-900">
               {job.config.provider}
               {job.config.model && ` / ${job.config.model}`}
             </span>
           </div>
           <div>
-            <span className="text-gray-500">Language:</span>{" "}
-            <span className="font-medium">{job.config.language}</span>
+            <span className="text-slate-500">Language:</span>{" "}
+            <span className="font-medium text-slate-900">{job.config.language}</span>
           </div>
           <div>
-            <span className="text-gray-500">Storage:</span>{" "}
-            <span className="font-medium">{job.config.storage}</span>
+            <span className="text-slate-500">Storage:</span>{" "}
+            <span className="font-medium text-slate-900">{job.config.storage}</span>
           </div>
         </div>
       </div>
 
       {/* Progress */}
       {(job.status === "pending" || job.status === "processing") && (
-        <div className="bg-white rounded-xl p-6 shadow-sm border">
-          <h2 className="text-lg font-semibold mb-3">Progress</h2>
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+          <h2 className="text-lg font-semibold text-slate-900 mb-3">Progress</h2>
           <JobProgressComponent jobId={id} />
         </div>
       )}
@@ -66,22 +75,22 @@ export default function JobDetailPage({
       {job.status === "failed" && job.error && (
         <div className="bg-red-50 rounded-xl p-6 border border-red-200">
           <h2 className="text-lg font-semibold text-red-800 mb-2">Error</h2>
-          <p className="text-red-700 text-sm">{job.error}</p>
+          <p className="text-red-700 text-sm font-mono">{job.error}</p>
         </div>
       )}
 
       {/* Completed */}
       {job.status === "completed" && (
-        <div className="bg-green-50 rounded-xl p-6 border border-green-200">
-          <h2 className="text-lg font-semibold text-green-800 mb-2">
+        <div className="bg-emerald-50 rounded-xl p-6 border border-emerald-200">
+          <h2 className="text-lg font-semibold text-emerald-800 mb-2">
             Completed
           </h2>
-          <p className="text-green-700 text-sm mb-4">
+          <p className="text-emerald-700 text-sm mb-4">
             {job.result?.image_count} images processed.
           </p>
           <Link
             href={`/results/${id}`}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+            className="inline-flex px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium shadow-sm"
           >
             View Results
           </Link>

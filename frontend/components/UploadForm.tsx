@@ -31,10 +31,12 @@ export default function UploadForm({ onFileSelect }: UploadFormProps) {
 
   return (
     <div
-      className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+      className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all ${
         dragOver
-          ? "border-blue-500 bg-blue-50"
-          : "border-gray-300 hover:border-gray-400"
+          ? "border-indigo-500 bg-indigo-50"
+          : selectedFile
+            ? "border-emerald-300 bg-emerald-50/50"
+            : "border-slate-300 hover:border-indigo-400 hover:bg-slate-50"
       }`}
       onDragOver={(e) => {
         e.preventDefault();
@@ -51,22 +53,30 @@ export default function UploadForm({ onFileSelect }: UploadFormProps) {
         className="hidden"
         onChange={handleFileChange}
       />
-      <div className="text-4xl mb-4">
-        {selectedFile ? "\u2705" : "\u{1F4C4}"}
-      </div>
       {selectedFile ? (
         <div>
-          <p className="font-semibold text-lg">{selectedFile.name}</p>
-          <p className="text-gray-500 text-sm">
+          <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3">
+            <svg className="w-6 h-6 text-emerald-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+            </svg>
+          </div>
+          <p className="font-semibold text-lg text-slate-900">{selectedFile.name}</p>
+          <p className="text-slate-500 text-sm mt-1">
             {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
           </p>
+          <p className="text-indigo-600 text-xs mt-2 font-medium">Click to change file</p>
         </div>
       ) : (
         <div>
-          <p className="text-lg font-medium">
+          <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center mx-auto mb-3">
+            <svg className="w-6 h-6 text-indigo-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+            </svg>
+          </div>
+          <p className="text-lg font-medium text-slate-900">
             Drop a PDF here or click to browse
           </p>
-          <p className="text-gray-500 text-sm mt-1">Maximum file size: 50 MB</p>
+          <p className="text-slate-500 text-sm mt-1">Maximum file size: 50 MB</p>
         </div>
       )}
     </div>

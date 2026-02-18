@@ -10,13 +10,16 @@ export default function JobsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Jobs</h1>
-        <p className="text-gray-500 mt-1">All PDF processing jobs.</p>
+        <h1 className="text-3xl font-bold text-slate-900">Jobs</h1>
+        <p className="text-slate-500 mt-1">All PDF processing jobs.</p>
       </div>
 
-      <div className="bg-white rounded-xl p-6 shadow-sm border">
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
         {isLoading ? (
-          <p className="text-gray-400">Loading...</p>
+          <div className="flex items-center gap-2 py-8 justify-center">
+            <div className="animate-spin h-5 w-5 border-2 border-indigo-500 border-t-transparent rounded-full" />
+            <span className="text-sm text-slate-500">Loading jobs...</span>
+          </div>
         ) : (
           <JobList
             jobs={jobs || []}
