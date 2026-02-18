@@ -24,7 +24,6 @@ Thumbs.db
 
 # Claude Code signatures & settings
 .claude/
-!.claude/git-flow.md
 .claude_files
 *.claude
 CLAUDE.local.md
