@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**pdf-vision-rag** is a Thai-first PDF pre-processing tool that extracts both text and
+**JAY-RAG-TOOLS** is a Thai-first PDF pre-processing tool that extracts both text and
 images from PDF documents and converts them into enriched Markdown files suitable for
 RAG (Retrieval-Augmented Generation) pipelines — specifically Flowise.
 
@@ -50,7 +50,7 @@ No existing open-source tool combines all four of these capabilities.
 ## Project Structure
 
 ```
-pdf-vision-rag/
+JAY-RAG-TOOLS/
 ├── CLAUDE.md                    ← You are here — read this first
 ├── README.md                    ← User-facing documentation
 ├── requirements.txt             ← Python dependencies
@@ -206,3 +206,6 @@ python src/main.py --input docs/manual.pdf --provider claude
 - All user-facing strings that appear in output Markdown should be in Thai
 - Error messages and logs can be in English
 - Keep CLI output clean — use tqdm for progress, avoid excessive print statements
+
+## Git Workflow
+See `.claude/git-flow.md` for full branching, commit, and PR rules.
