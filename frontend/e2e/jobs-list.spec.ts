@@ -1,16 +1,37 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
+
+/** Poll the API until at least one completed test.pdf job exists. */
+async function waitForCompletedJob(page: Page, timeoutMs = 120_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const res = await page.request.get("/api/jobs");
+    if (res.ok()) {
+      const { jobs } = await res.json();
+      const completed = jobs.find(
+        (j: { filename: string; status: string }) =>
+          j.filename === "test.pdf" && j.status === "completed"
+      );
+      if (completed) return completed;
+    }
+    await page.waitForTimeout(2000);
+  }
+  throw new Error("Timed out waiting for a completed test.pdf job");
+}
 
 test.describe("Jobs List — SQLite Persistence", () => {
   test("displays persisted completed job with correct details", async ({
     page,
   }) => {
+    // Wait for a completed job to exist before checking the UI
+    await waitForCompletedJob(page);
+
     await page.goto("/jobs");
 
     // Heading
     await expect(page.getByRole("heading", { name: "Jobs" })).toBeVisible();
 
-    // Table should be visible (not "No jobs yet")
-    await expect(page.locator("table")).toBeVisible();
+    // Table should be visible after data loads (allow time for React Query fetch)
+    await expect(page.locator("table")).toBeVisible({ timeout: 10_000 });
 
     // Table headers
     await expect(page.getByText("File")).toBeVisible();
@@ -19,12 +40,12 @@ test.describe("Jobs List — SQLite Persistence", () => {
     await expect(page.getByText("Images")).toBeVisible();
     await expect(page.getByText("Actions")).toBeVisible();
 
-    // Find a completed job row (filter by both filename and "completed" badge)
+    // Find a completed job row (page auto-refetches every 5s)
     const completedRow = page
       .locator("tr", { hasText: "test.pdf" })
       .filter({ hasText: "completed" })
       .first();
-    await expect(completedRow).toBeVisible();
+    await expect(completedRow).toBeVisible({ timeout: 15_000 });
 
     // Filename link
     await expect(
@@ -52,14 +73,20 @@ test.describe("Jobs List — SQLite Persistence", () => {
   });
 
   test("completed job links to results page", async ({ page }) => {
+    // Wait for a completed job to exist before checking the UI
+    await waitForCompletedJob(page);
+
     await page.goto("/jobs");
 
-    // Target a completed test.pdf row specifically
+    // Wait for table to load
+    await expect(page.locator("table")).toBeVisible({ timeout: 10_000 });
+
+    // Target a completed test.pdf row (allow time for refetch)
     const completedRow = page
       .locator("tr", { hasText: "test.pdf" })
       .filter({ hasText: "completed" })
       .first();
-    await expect(completedRow).toBeVisible();
+    await expect(completedRow).toBeVisible({ timeout: 15_000 });
 
     // The filename link should point to /results/{id}
     const link = completedRow.locator("a", { hasText: "test.pdf" });
@@ -82,7 +109,7 @@ test.describe("Jobs List — SQLite Persistence", () => {
 
     // Navigate to jobs page
     await page.goto("/jobs");
-    await expect(page.locator("table")).toBeVisible();
+    await expect(page.locator("table")).toBeVisible({ timeout: 10_000 });
 
     // Check that each job on the first page (up to 10) has a visible row
     const firstPage = jobs.slice(0, 10);
