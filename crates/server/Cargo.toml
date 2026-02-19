@@ -35,6 +35,9 @@ chrono = "0.4"
 # Database
 rusqlite = { version = "0.32", features = ["bundled"] }
 
+# ZIP export
+zip = "2"
+
 # Internal
 jay-rag-core = { workspace = true }
 jay-rag-storage = { workspace = true }

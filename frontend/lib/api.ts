@@ -89,3 +89,11 @@ export async function deleteJob(id: string): Promise<{ message: string }> {
 export async function getResults(jobId: string): Promise<ResultsResponse> {
   return fetchJson(`/api/results/${jobId}`);
 }
+
+export function getExportZipUrl(jobId: string, imageBaseUrl?: string): string {
+  const base = `${API_BASE}/api/results/${jobId}/export`;
+  if (imageBaseUrl) {
+    return `${base}?image_base_url=${encodeURIComponent(imageBaseUrl)}`;
+  }
+  return base;
+}
