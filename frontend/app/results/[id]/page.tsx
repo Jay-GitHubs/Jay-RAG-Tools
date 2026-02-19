@@ -110,17 +110,10 @@ export default function ResultsPage({
               </button>
             </>
           )}
-          <input
-            type="text"
-            value={imageBaseUrl}
-            onChange={(e) => setImageBaseUrl(e.target.value)}
-            placeholder="e.g. http://192.168.0.10:8444/rag-images"
-            className="px-2 py-1.5 text-xs border border-slate-200 rounded-md w-64 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
-          />
           <button
             onClick={async () => {
               try {
-                const res = await fetch(getExportZipUrl(id, imageBaseUrl || undefined));
+                const res = await fetch(getExportZipUrl(id));
                 if (!res.ok) {
                   const body = await res.json().catch(() => ({}));
                   alert(body.error || `Export failed: HTTP ${res.status}`);
@@ -145,6 +138,46 @@ export default function ResultsPage({
             Download ZIP
           </button>
         </div>
+      </div>
+
+      {/* Export with HTML image tags */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <input
+          type="text"
+          value={imageBaseUrl}
+          onChange={(e) => setImageBaseUrl(e.target.value)}
+          placeholder="e.g. http://192.168.0.10:8444/rag-images"
+          className="px-3 py-1.5 text-xs border border-slate-200 rounded-md w-72 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+        />
+        <button
+          disabled={!imageBaseUrl.trim()}
+          onClick={async () => {
+            try {
+              const res = await fetch(getExportZipUrl(id, imageBaseUrl));
+              if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                alert(body.error || `Export failed: HTTP ${res.status}`);
+                return;
+              }
+              const blob = await res.blob();
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `${id.slice(0, 8)}_results.zip`;
+              a.click();
+              URL.revokeObjectURL(url);
+            } catch {
+              alert("Failed to download ZIP");
+            }
+          }}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-md transition-colors"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0-3-3m3 3 3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
+          </svg>
+          Export ZIP with HTML images
+        </button>
+        <span className="text-xs text-slate-400">Converts [IMAGE:] tags to &lt;img&gt; for RAG platforms</span>
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
