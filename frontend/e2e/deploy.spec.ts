@@ -1,13 +1,10 @@
 import { test, expect, type Page } from "@playwright/test";
 
-// Direct API URL (bypass Next.js proxy to avoid Docker IPv6 conflict on port 3000)
-const API = "http://127.0.0.1:3000";
-
 /** Find a completed job ID via the API. */
 async function getCompletedJobId(page: Page, timeoutMs = 30_000): Promise<string> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    const res = await page.request.get(`${API}/api/jobs`);
+    const res = await page.request.get("/api/jobs");
     if (res.ok()) {
       const { jobs } = await res.json();
       const completed = jobs.find(
