@@ -64,3 +64,15 @@ export function useResults(jobId: string) {
     queryFn: () => api.getResults(jobId),
   });
 }
+
+export function useDeploy() {
+  return useMutation({
+    mutationFn: ({
+      jobId,
+      request,
+    }: {
+      jobId: string;
+      request: import("@/lib/types").DeployRequest;
+    }) => api.deployResults(jobId, request),
+  });
+}

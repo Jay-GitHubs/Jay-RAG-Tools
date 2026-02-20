@@ -70,3 +70,35 @@ export interface ResultsResponse {
   metadata?: Record<string, unknown>[];
   image_count: number;
 }
+
+// Deploy types
+
+export type ImageTargetType = "local_folder" | "s3" | "scp";
+export type MarkdownTargetType = "local_folder" | "flowise";
+
+export type ImageTarget =
+  | { type: "local_folder"; path: string }
+  | { type: "s3"; bucket: string; prefix: string; region?: string }
+  | { type: "scp"; host: string; port?: number; username: string; private_key_path?: string; remote_path: string };
+
+export type MarkdownTarget =
+  | { type: "local_folder"; path: string }
+  | { type: "flowise"; base_url: string; api_key: string; store_id: string };
+
+export interface DeployRequest {
+  image_base_url: string;
+  image_target?: ImageTarget;
+  markdown_target?: MarkdownTarget;
+}
+
+export interface DeployStepResult {
+  target_type: string;
+  detail: string;
+}
+
+export interface DeployResponse {
+  success: boolean;
+  image_result?: DeployStepResult;
+  markdown_result?: DeployStepResult;
+  errors: string[];
+}

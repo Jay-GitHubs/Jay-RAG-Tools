@@ -19,6 +19,7 @@ pub fn create_app(state: Arc<AppState>) -> Router {
         .route("/api/jobs/{id}", delete(routes::jobs::delete_job))
         .route("/api/results/{job_id}", get(routes::results::get_results))
         .route("/api/results/{job_id}/export", get(routes::export::export_zip))
+        .route("/api/results/{job_id}/deploy", post(routes::deploy::deploy_handler))
         .route("/api/config", get(routes::config::get_config));
 
     let ws_route = Router::new()

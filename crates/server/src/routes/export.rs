@@ -131,7 +131,7 @@ pub async fn export_zip(
 
 /// Convert `[IMAGE:path]` tags to HTML `<img>` tags, grouping consecutive
 /// images into a flex container with responsive widths.
-fn convert_image_tags(markdown: &str, base_url: &str) -> String {
+pub(crate) fn convert_image_tags(markdown: &str, base_url: &str) -> String {
     let base = base_url.trim_end_matches('/');
     let mut output = String::with_capacity(markdown.len());
     let lines: Vec<&str> = markdown.lines().collect();

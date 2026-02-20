@@ -1,4 +1,5 @@
 pub mod app;
+pub mod deploy;
 pub mod error;
 pub mod jobs;
 pub mod routes;

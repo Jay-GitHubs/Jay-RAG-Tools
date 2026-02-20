@@ -1,5 +1,7 @@
 import type {
   ConfigResponse,
+  DeployRequest,
+  DeployResponse,
   Job,
   ResultsResponse,
   UploadResponse,
@@ -96,4 +98,15 @@ export function getExportZipUrl(jobId: string, imageBaseUrl?: string): string {
     return `${base}?image_base_url=${encodeURIComponent(imageBaseUrl)}`;
   }
   return base;
+}
+
+export async function deployResults(
+  jobId: string,
+  request: DeployRequest
+): Promise<DeployResponse> {
+  return fetchJson(`/api/results/${jobId}/deploy`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
 }
