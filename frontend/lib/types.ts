@@ -7,6 +7,7 @@ export interface JobConfig {
   start_page?: number;
   end_page?: number;
   table_extraction: boolean;
+  text_only?: boolean;
   storage: string;
   s3_bucket?: string;
   s3_prefix?: string;

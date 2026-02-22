@@ -9,6 +9,7 @@ interface PipelineConfigProps {
     language: string;
     storage: string;
     table_extraction: boolean;
+    text_only: boolean;
     start_page: string;
     end_page: string;
     s3_bucket: string;
@@ -38,7 +39,48 @@ export default function PipelineConfig({
     <div className="space-y-5">
       <h3 className="text-lg font-semibold text-slate-900">Pipeline Configuration</h3>
 
-      <div className="grid grid-cols-2 gap-4">
+      {/* Text-only mode toggle */}
+      <div className="space-y-2">
+        <label className="flex items-center gap-3 cursor-pointer group">
+          <div className="relative">
+            <input
+              type="checkbox"
+              checked={config.text_only}
+              onChange={(e) =>
+                onChange({
+                  ...config,
+                  text_only: e.target.checked,
+                  table_extraction: e.target.checked ? false : config.table_extraction,
+                })
+              }
+              className="sr-only peer"
+            />
+            <div className="w-9 h-5 bg-slate-300 rounded-full peer-checked:bg-green-600 transition-colors" />
+            <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-sm peer-checked:translate-x-4 transition-transform" />
+          </div>
+          <div>
+            <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">
+              Text-only mode
+            </span>
+            <p className="text-xs text-slate-500">
+              Extract text only — no images, no Vision LLM, zero API cost
+            </p>
+          </div>
+        </label>
+
+        {config.text_only && (
+          <div className="flex items-start gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <svg className="w-4 h-4 text-green-600 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+            <p className="text-xs text-green-700">
+              No Vision LLM API calls will be made. Only pdfium text extraction is used.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className={`grid grid-cols-2 gap-4${config.text_only ? " opacity-50 pointer-events-none" : ""}`}>
         {/* Provider */}
         <div>
           <label className={labelClasses}>Provider</label>
@@ -191,7 +233,7 @@ export default function PipelineConfig({
       )}
 
       {/* Table extraction toggle */}
-      <label className="flex items-center gap-3 cursor-pointer group">
+      <label className={`flex items-center gap-3 cursor-pointer group${config.text_only ? " opacity-50 pointer-events-none" : ""}`}>
         <div className="relative">
           <input
             type="checkbox"

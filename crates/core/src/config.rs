@@ -60,6 +60,10 @@ pub struct ProcessingConfig {
 
     /// Enable table extraction (default: true).
     pub table_extraction: bool,
+
+    /// Text-only mode: extract text only, skip images and LLM calls (default: false).
+    #[serde(default)]
+    pub text_only: bool,
 }
 
 impl Default for ProcessingConfig {
@@ -72,6 +76,7 @@ impl Default for ProcessingConfig {
             max_retries: 3,
             retry_delay_ms: 2000,
             table_extraction: true,
+            text_only: false,
         }
     }
 }

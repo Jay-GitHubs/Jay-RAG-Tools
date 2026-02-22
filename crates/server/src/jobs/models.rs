@@ -25,6 +25,8 @@ pub struct JobConfig {
     pub end_page: Option<u32>,
     #[serde(default)]
     pub table_extraction: bool,
+    #[serde(default)]
+    pub text_only: bool,
     #[serde(default = "default_storage")]
     pub storage: String,
     #[serde(default)]

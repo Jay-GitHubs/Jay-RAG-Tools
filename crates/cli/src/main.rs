@@ -60,6 +60,10 @@ struct ProcessArgs {
     /// Disable table extraction (enabled by default)
     #[arg(long)]
     no_tables: bool,
+
+    /// Text-only mode: extract text only, skip all images and Vision LLM calls
+    #[arg(long)]
+    text_only: bool,
 }
 
 #[derive(Parser)]
@@ -145,25 +149,33 @@ async fn main() -> Result<()> {
 }
 
 async fn run_process(args: ProcessArgs) -> Result<()> {
-    let model = args
-        .model
-        .unwrap_or_else(|| provider::default_model(&args.provider).to_string());
-
     let lang: Language = args.lang.parse().unwrap_or_default();
 
     let config = ProcessingConfig {
         language: lang,
-        table_extraction: !args.no_tables,
+        table_extraction: !args.no_tables && !args.text_only,
+        text_only: args.text_only,
         ..Default::default()
     };
 
-    // Create provider and check availability
-    let vision_provider = provider::create_provider(&args.provider, &model)?;
+    // Create provider (skip when text_only)
+    let vision_provider: Option<Box<dyn jay_rag_core::VisionProvider>> = if args.text_only {
+        println!("\nText-only mode: skipping Vision LLM (no images, no API calls)");
+        None
+    } else {
+        let model = args
+            .model
+            .unwrap_or_else(|| provider::default_model(&args.provider).to_string());
 
-    if !args.skip_check {
-        println!("\nChecking provider: {} / {}", args.provider, model);
-        vision_provider.check().await?;
-    }
+        let p = provider::create_provider(&args.provider, &model)?;
+
+        if !args.skip_check {
+            println!("\nChecking provider: {} / {}", args.provider, model);
+            p.check().await?;
+        }
+
+        Some(p)
+    };
 
     // Create output directory
     tokio::fs::create_dir_all(&args.output).await?;
@@ -198,7 +210,7 @@ async fn run_process(args: ProcessArgs) -> Result<()> {
         let result = jay_rag_core::process_pdf(
             pdf_path,
             &args.output,
-            vision_provider.as_ref(),
+            vision_provider.as_deref(),
             &config,
             &reporter,
             if args.start_page > 0 {
@@ -215,15 +227,19 @@ async fn run_process(args: ProcessArgs) -> Result<()> {
     println!("\n{}", "=".repeat(60));
     println!("Done! {} file(s) processed.", results.len());
     println!("Output: {}", args.output.canonicalize()?.display());
-    println!();
-    println!("Flowise Next Steps:");
-    println!("  1. Load .md files using Text File Loader in Document Store");
-    println!("  2. Serve output/images/ as static HTTP");
-    println!("     e.g. jay-rag serve --output {}", args.output.display());
-    println!("  3. Add to System Prompt:");
-    println!(
-        "     \"เมื่อพบ [IMAGE:x.png] ให้แสดงเป็น <img src='http://localhost:3000/images/.../x.png' />\""
-    );
+
+    if !args.text_only {
+        println!();
+        println!("Flowise Next Steps:");
+        println!("  1. Load .md files using Text File Loader in Document Store");
+        println!("  2. Serve output/images/ as static HTTP");
+        println!("     e.g. jay-rag serve --output {}", args.output.display());
+        println!("  3. Add to System Prompt:");
+        println!(
+            "     \"เมื่อพบ [IMAGE:x.png] ให้แสดงเป็น <img src='http://localhost:3000/images/.../x.png' />\""
+        );
+    }
+
     println!("{}\n", "=".repeat(60));
 
     Ok(())

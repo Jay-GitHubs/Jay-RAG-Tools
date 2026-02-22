@@ -268,7 +268,7 @@ async fn process_page_async(
 pub async fn process_pdf(
     pdf_path: &Path,
     output_dir: &Path,
-    provider: &dyn VisionProvider,
+    provider: Option<&dyn VisionProvider>,
     config: &ProcessingConfig,
     reporter: &dyn ProgressReporter,
     start_page: Option<u32>,
@@ -279,6 +279,13 @@ pub async fn process_pdf(
         .and_then(|s| s.to_str())
         .unwrap_or("document")
         .to_string();
+
+    // Text-only mode: extract text only, no images, no LLM calls
+    if config.text_only {
+        return process_pdf_text_only(pdf_path, output_dir, &doc_stem, config, reporter, start_page, end_page).await;
+    }
+
+    let provider = provider.ok_or_else(|| CoreError::Config("Vision LLM provider required when text_only is false".into()))?;
 
     let images_dir = output_dir.join("images").join(&doc_stem);
     tokio::fs::create_dir_all(&images_dir).await?;
@@ -398,5 +405,99 @@ pub async fn process_pdf(
         markdown_path: md_path,
         metadata_path: meta_path,
         image_count,
+    })
+}
+
+/// Text-only processing: extract text via pdfium only, no images, no LLM calls.
+async fn process_pdf_text_only(
+    pdf_path: &Path,
+    output_dir: &Path,
+    doc_stem: &str,
+    config: &ProcessingConfig,
+    reporter: &dyn ProgressReporter,
+    start_page: Option<u32>,
+    end_page: Option<u32>,
+) -> CoreResult<ProcessingResult> {
+    let pdf_path_owned = pdf_path.to_path_buf();
+    let doc_stem_clone = doc_stem.to_string();
+
+    let page_texts: Vec<(u32, String)> = tokio::task::spawn_blocking(move || {
+        let engine = PdfEngine::new()?;
+        let doc = engine.open_document(&pdf_path_owned)?;
+        let total_pages = PdfEngine::page_count(&doc);
+
+        let start = start_page.unwrap_or(0);
+        let end = end_page.unwrap_or(total_pages).min(total_pages);
+
+        tracing::info!(
+            "Text-only processing: {} | Pages: {}-{} (of {})",
+            doc_stem_clone,
+            start + 1,
+            end,
+            total_pages
+        );
+
+        let mut results = Vec::new();
+        for page_num in start..end {
+            let page = doc.pages().get(page_num as u16).map_err(|e| {
+                CoreError::Pdf(format!("Failed to get page {}: {e}", page_num + 1))
+            })?;
+            let text = PdfEngine::extract_page_text(&page);
+            results.push((page_num, text));
+        }
+
+        Ok::<_, CoreError>(results)
+    })
+    .await
+    .map_err(|e| CoreError::Pdf(format!("Blocking task panicked: {e}")))?
+    ?;
+
+    let total_pages = page_texts.len() as u32;
+    reporter.on_pdf_start(doc_stem, total_pages);
+
+    let lang_label = match config.language {
+        crate::config::Language::Th => "th",
+        crate::config::Language::En => "en",
+    };
+
+    let mut all_content = vec![
+        format!("# {doc_stem}\n"),
+        format!("> Mode: `text-only` | Language: `{lang_label}` | Pages: {total_pages}\n"),
+    ];
+
+    for (page_num, text) in &page_texts {
+        reporter.on_page_start(page_num + 1, total_pages);
+
+        let mut lines = vec![format!("\n\n---\n## Page {}\n", page_num + 1)];
+        if !text.is_empty() {
+            lines.push(text.clone());
+        }
+        all_content.push(lines.join("\n"));
+
+        reporter.on_page_complete(page_num + 1, total_pages);
+    }
+
+    // Save outputs
+    let md_path = output_dir.join(format!("{doc_stem}_enriched.md"));
+    let meta_path = output_dir.join(format!("{doc_stem}_images_metadata.json"));
+
+    let markdown_content = all_content.join("\n");
+    tokio::fs::write(&md_path, &markdown_content).await?;
+
+    // Empty metadata for text-only mode
+    tokio::fs::write(&meta_path, "[]").await?;
+
+    reporter.on_pdf_complete(doc_stem, 0);
+
+    tracing::info!(
+        "Text-only markdown: {} ({:.1} KB)",
+        md_path.display(),
+        markdown_content.len() as f64 / 1024.0
+    );
+
+    Ok(ProcessingResult {
+        markdown_path: md_path,
+        metadata_path: meta_path,
+        image_count: 0,
     })
 }

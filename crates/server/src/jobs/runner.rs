@@ -113,6 +113,7 @@ pub async fn run_job(
     start_page: Option<u32>,
     end_page: Option<u32>,
     table_extraction: bool,
+    text_only: bool,
 ) {
     queue
         .update_status(&job_id, JobStatus::Processing)
@@ -122,16 +123,20 @@ pub async fn run_job(
 
     let config = ProcessingConfig {
         language: lang,
-        table_extraction,
+        table_extraction: if text_only { false } else { table_extraction },
+        text_only,
         ..Default::default()
     };
 
-    let provider_result = provider::create_provider(&provider_name, &model);
-    let vision_provider = match provider_result {
-        Ok(p) => p,
-        Err(e) => {
-            queue.set_failed(&job_id, e.to_string()).await;
-            return;
+    let vision_provider: Option<Box<dyn jay_rag_core::VisionProvider>> = if text_only {
+        None
+    } else {
+        match provider::create_provider(&provider_name, &model) {
+            Ok(p) => Some(p),
+            Err(e) => {
+                queue.set_failed(&job_id, e.to_string()).await;
+                return;
+            }
         }
     };
 
@@ -144,7 +149,7 @@ pub async fn run_job(
     match jay_rag_core::process_pdf(
         &pdf_path,
         &output_dir,
-        vision_provider.as_ref(),
+        vision_provider.as_deref(),
         &config,
         &reporter,
         start_page,

@@ -240,6 +240,7 @@ fn default_config() -> JobConfig {
         start_page: None,
         end_page: None,
         table_extraction: false,
+        text_only: false,
         storage: "local".to_string(),
         s3_bucket: None,
         s3_prefix: None,
