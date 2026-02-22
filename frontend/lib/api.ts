@@ -1,4 +1,6 @@
 import type {
+  CleanRequest,
+  CleanResponse,
   ConfigResponse,
   DeployRequest,
   DeployResponse,
@@ -105,6 +107,17 @@ export async function deployResults(
   request: DeployRequest
 ): Promise<DeployResponse> {
   return fetchJson(`/api/results/${jobId}/deploy`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+}
+
+export async function cleanResults(
+  jobId: string,
+  request: CleanRequest
+): Promise<CleanResponse> {
+  return fetchJson(`/api/results/${jobId}/clean`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),

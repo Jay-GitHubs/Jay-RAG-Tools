@@ -1,3 +1,4 @@
+pub mod clean;
 pub mod config;
 pub mod deploy;
 pub mod export;

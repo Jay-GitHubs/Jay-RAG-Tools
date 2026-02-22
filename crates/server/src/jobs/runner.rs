@@ -166,6 +166,10 @@ pub async fn run_job(
                     .join("images")
                     .to_string_lossy()
                     .to_string(),
+                trash_path: result
+                    .trash_path
+                    .map(|p| p.to_string_lossy().to_string()),
+                trash_count: result.trash_count,
             };
             queue.set_completed(&job_id, job_result).await;
         }

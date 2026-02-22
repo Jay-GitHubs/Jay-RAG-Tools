@@ -14,6 +14,8 @@ pub struct ResultsResponse {
     pub markdown: Option<String>,
     pub metadata: Option<serde_json::Value>,
     pub image_count: u32,
+    pub trash: Option<Vec<serde_json::Value>>,
+    pub trash_count: u32,
 }
 
 /// Get results for a completed job.
@@ -48,10 +50,22 @@ pub async fn get_results(
         .ok()
         .and_then(|s| serde_json::from_str(&s).ok());
 
+    // Read trash detection results
+    let trash: Option<Vec<serde_json::Value>> = if let Some(ref trash_path) = result.trash_path {
+        tokio::fs::read_to_string(trash_path)
+            .await
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+    } else {
+        None
+    };
+
     Ok(Json(ResultsResponse {
         job_id,
         markdown,
         metadata,
         image_count: result.image_count,
+        trash,
+        trash_count: result.trash_count,
     }))
 }

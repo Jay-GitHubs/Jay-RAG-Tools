@@ -76,3 +76,19 @@ export function useDeploy() {
     }) => api.deployResults(jobId, request),
   });
 }
+
+export function useCleanResults() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      jobId,
+      request,
+    }: {
+      jobId: string;
+      request: import("@/lib/types").CleanRequest;
+    }) => api.cleanResults(jobId, request),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["results", variables.jobId] });
+    },
+  });
+}

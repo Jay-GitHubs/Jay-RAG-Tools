@@ -27,6 +27,9 @@ tracing-subscriber = { workspace = true }
 # Error handling
 anyhow = { workspace = true }
 
+# Serialization
+serde_json = { workspace = true }
+
 # Web server (for serve command)
 axum = { version = "0.8" }
 

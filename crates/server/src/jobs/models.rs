@@ -62,6 +62,10 @@ pub struct JobResult {
     pub metadata_path: String,
     pub image_count: u32,
     pub images_dir: String,
+    #[serde(default)]
+    pub trash_path: Option<String>,
+    #[serde(default)]
+    pub trash_count: u32,
 }
 
 /// A processing job.

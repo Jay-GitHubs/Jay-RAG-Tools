@@ -72,6 +72,10 @@ pub struct ProcessingConfig {
     /// Max images described concurrently within a single page (default: 5).
     #[serde(default = "default_concurrent_images")]
     pub max_concurrent_images: usize,
+
+    /// Enable trash detection (default: true).
+    #[serde(default = "default_true")]
+    pub detect_trash: bool,
 }
 
 fn default_concurrent_pages() -> usize {
@@ -80,6 +84,10 @@ fn default_concurrent_pages() -> usize {
 
 fn default_concurrent_images() -> usize {
     5
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl Default for ProcessingConfig {
@@ -95,6 +103,7 @@ impl Default for ProcessingConfig {
             text_only: false,
             max_concurrent_pages: default_concurrent_pages(),
             max_concurrent_images: default_concurrent_images(),
+            detect_trash: true,
         }
     }
 }

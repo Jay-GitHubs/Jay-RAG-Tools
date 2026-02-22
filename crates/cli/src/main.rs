@@ -69,6 +69,15 @@ struct ProcessArgs {
     /// Max pages processed concurrently (default: 4)
     #[arg(long, default_value = "4")]
     concurrency: usize,
+
+    /// Disable trash detection
+    #[arg(long)]
+    no_detect_trash: bool,
+
+    /// Auto-strip detected trash pages from output (creates _cleaned.md).
+    /// Optionally filter by type: toc,boilerplate,blank
+    #[arg(long, value_name = "TYPES")]
+    strip_trash: Option<Option<String>>,
 }
 
 #[derive(Parser)]
@@ -161,6 +170,7 @@ async fn run_process(args: ProcessArgs) -> Result<()> {
         table_extraction: !args.no_tables && !args.text_only,
         text_only: args.text_only,
         max_concurrent_pages: args.concurrency,
+        detect_trash: !args.no_detect_trash,
         ..Default::default()
     };
 
@@ -230,6 +240,58 @@ async fn run_process(args: ProcessArgs) -> Result<()> {
         results.push(result);
     }
 
+    // Trash detection summary + auto-strip
+    for result in &results {
+        if result.trash_count > 0 {
+            if let Some(trash_path) = &result.trash_path {
+                let trash_json = tokio::fs::read_to_string(trash_path).await?;
+                let trash_items: Vec<jay_rag_core::TrashDetection> =
+                    serde_json::from_str(&trash_json)?;
+
+                println!("\nTrash detected: {} item(s)", trash_items.len());
+                for item in &trash_items {
+                    if item.page == 0 {
+                        println!("  (doc)    {:<22} ({:.2})", item.trash_type, item.confidence);
+                    } else {
+                        println!(
+                            "  Page {:<3} {:<22} ({:.2})",
+                            item.page, item.trash_type, item.confidence
+                        );
+                    }
+                }
+
+                // Auto-strip if --strip-trash provided
+                if args.strip_trash.is_some() {
+                    let type_filter = args.strip_trash.as_ref().unwrap();
+                    let pages_to_remove: Vec<u32> = trash_items
+                        .iter()
+                        .filter(|t| {
+                            t.page > 0 && match_trash_filter(t, type_filter.as_deref())
+                        })
+                        .map(|t| t.page)
+                        .collect();
+
+                    if pages_to_remove.is_empty() {
+                        println!("  No removable pages match the filter.");
+                    } else {
+                        let (cleaned_path, _) = jay_rag_core::clean_markdown(
+                            &result.markdown_path,
+                            &pages_to_remove,
+                        )
+                        .await?;
+                        println!(
+                            "  Stripped {} page(s) -> {}",
+                            pages_to_remove.len(),
+                            cleaned_path.display()
+                        );
+                    }
+                } else {
+                    println!("  Tip: Use --strip-trash to auto-remove");
+                }
+            }
+        }
+    }
+
     println!("\n{}", "=".repeat(60));
     println!("Done! {} file(s) processed.", results.len());
     println!("Output: {}", args.output.canonicalize()?.display());
@@ -249,6 +311,27 @@ async fn run_process(args: ProcessArgs) -> Result<()> {
     println!("{}\n", "=".repeat(60));
 
     Ok(())
+}
+
+/// Check if a trash item matches the optional type filter string.
+/// Filter is comma-separated: "toc,boilerplate,blank,header_footer".
+/// If no filter, all types match.
+fn match_trash_filter(
+    item: &jay_rag_core::TrashDetection,
+    filter: Option<&str>,
+) -> bool {
+    let Some(filter) = filter else {
+        return true;
+    };
+
+    let types: Vec<&str> = filter.split(',').map(|s| s.trim()).collect();
+    types.iter().any(|t| match *t {
+        "toc" => item.trash_type == jay_rag_core::TrashType::TableOfContents,
+        "boilerplate" => item.trash_type == jay_rag_core::TrashType::Boilerplate,
+        "blank" => item.trash_type == jay_rag_core::TrashType::BlankPage,
+        "header_footer" => item.trash_type == jay_rag_core::TrashType::HeaderFooter,
+        _ => false,
+    })
 }
 
 async fn run_serve(args: ServeArgs) -> Result<()> {

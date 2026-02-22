@@ -70,6 +70,31 @@ export interface ResultsResponse {
   markdown?: string;
   metadata?: Record<string, unknown>[];
   image_count: number;
+  trash?: TrashDetection[];
+  trash_count: number;
+}
+
+export type TrashTypeName =
+  | "table_of_contents"
+  | "boilerplate"
+  | "blank_page"
+  | "header_footer";
+
+export interface TrashDetection {
+  page: number;
+  trash_type: TrashTypeName;
+  confidence: number;
+  reason: string;
+  preview: string;
+}
+
+export interface CleanRequest {
+  remove_pages: number[];
+}
+
+export interface CleanResponse {
+  cleaned_markdown: string;
+  pages_removed: number[];
 }
 
 // Deploy types

@@ -4,6 +4,7 @@ import { use, useState } from "react";
 import MarkdownViewer from "@/components/MarkdownViewer";
 import ImageGallery from "@/components/ImageGallery";
 import DeployModal from "@/components/DeployModal";
+import TrashPanel from "@/components/TrashPanel";
 import { useResults } from "@/hooks/useJobs";
 import { getExportZipUrl } from "@/lib/api";
 
@@ -14,10 +15,12 @@ export default function ResultsPage({
 }) {
   const { id } = use(params);
   const { data: results, isLoading } = useResults(id);
-  const [tab, setTab] = useState<"markdown" | "images">("markdown");
+  const [tab, setTab] = useState<"markdown" | "images" | "trash">("markdown");
   const [copied, setCopied] = useState(false);
   const [imageBaseUrl, setImageBaseUrl] = useState("");
   const [showDeploy, setShowDeploy] = useState(false);
+  const [cleanedMarkdown, setCleanedMarkdown] = useState<string | null>(null);
+  const [showCleaned, setShowCleaned] = useState(false);
 
   if (isLoading) {
     return (
@@ -42,6 +45,9 @@ export default function ResultsPage({
     description: string;
     type: string;
   }>) || [];
+
+  const trashCount = results.trash_count || 0;
+  const markdownToShow = showCleaned && cleanedMarkdown ? cleanedMarkdown : results.markdown;
 
   return (
     <div className="space-y-6">
@@ -75,14 +81,41 @@ export default function ResultsPage({
           >
             Images ({results.image_count})
           </button>
+          <button
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-all relative ${
+              tab === "trash"
+                ? "bg-white shadow-sm text-indigo-700"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+            onClick={() => setTab("trash")}
+          >
+            Trash
+            {trashCount > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold rounded-full bg-amber-100 text-amber-700">
+                {trashCount}
+              </span>
+            )}
+          </button>
         </div>
 
         <div className="flex gap-2">
-          {tab === "markdown" && results.markdown && (
+          {tab === "markdown" && cleanedMarkdown && (
+            <button
+              onClick={() => setShowCleaned(!showCleaned)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
+                showCleaned
+                  ? "bg-emerald-50 border-emerald-300 text-emerald-700"
+                  : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              {showCleaned ? "Showing Cleaned" : "Show Cleaned"}
+            </button>
+          )}
+          {tab === "markdown" && markdownToShow && (
             <>
               <button
                 onClick={async () => {
-                  await navigator.clipboard.writeText(results.markdown!);
+                  await navigator.clipboard.writeText(markdownToShow!);
                   setCopied(true);
                   setTimeout(() => setCopied(false), 2000);
                 }}
@@ -95,11 +128,11 @@ export default function ResultsPage({
               </button>
               <button
                 onClick={() => {
-                  const blob = new Blob([results.markdown!], { type: "text/markdown" });
+                  const blob = new Blob([markdownToShow!], { type: "text/markdown" });
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement("a");
                   a.href = url;
-                  a.download = `${id.slice(0, 8)}_enriched.md`;
+                  a.download = `${id.slice(0, 8)}_${showCleaned ? "cleaned" : "enriched"}.md`;
                   a.click();
                   URL.revokeObjectURL(url);
                 }}
@@ -193,13 +226,23 @@ export default function ResultsPage({
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
         {tab === "markdown" ? (
-          results.markdown ? (
-            <MarkdownViewer content={results.markdown} />
+          markdownToShow ? (
+            <MarkdownViewer content={markdownToShow} />
           ) : (
             <p className="text-slate-400">No markdown content available.</p>
           )
-        ) : (
+        ) : tab === "images" ? (
           <ImageGallery images={images} />
+        ) : (
+          <TrashPanel
+            jobId={id}
+            items={results.trash || []}
+            onCleaned={(cleaned) => {
+              setCleanedMarkdown(cleaned);
+              setShowCleaned(true);
+              setTab("markdown");
+            }}
+          />
         )}
       </div>
 

@@ -111,23 +111,23 @@ fn should_break_after(line: &str) -> bool {
         || line.ends_with("นะครับ")
 }
 
-/// Detect repeated text across pages (headers/footers) and strip it.
-fn strip_headers_footers(page_texts: &mut [(u32, String)]) {
+/// Detect repeated text across pages (headers/footers) without mutating.
+///
+/// Returns `(headers, footers)` — lines that appear in >60% of pages.
+fn detect_headers_footers(page_texts: &[(u32, String)]) -> (Vec<String>, Vec<String>) {
     if page_texts.len() < 3 {
-        return;
+        return (Vec::new(), Vec::new());
     }
 
     let total = page_texts.len();
     let threshold = (total as f64 * 0.6).ceil() as usize;
 
-    // Collect first 3 and last 3 lines of each page
     let mut first_lines: HashMap<String, usize> = HashMap::new();
     let mut last_lines: HashMap<String, usize> = HashMap::new();
 
     for (_, text) in page_texts.iter() {
         let lines: Vec<&str> = text.lines().collect();
 
-        // First 3 lines (potential headers)
         for line in lines.iter().take(3) {
             let trimmed = line.trim().to_string();
             if !trimmed.is_empty() && trimmed.len() < 200 {
@@ -135,7 +135,6 @@ fn strip_headers_footers(page_texts: &mut [(u32, String)]) {
             }
         }
 
-        // Last 3 lines (potential footers)
         for line in lines.iter().rev().take(3) {
             let trimmed = line.trim().to_string();
             if !trimmed.is_empty() && trimmed.len() < 200 {
@@ -144,7 +143,6 @@ fn strip_headers_footers(page_texts: &mut [(u32, String)]) {
         }
     }
 
-    // Identify headers and footers (appear in >60% of pages)
     let headers: Vec<String> = first_lines
         .into_iter()
         .filter(|(_, count)| *count >= threshold)
@@ -157,6 +155,15 @@ fn strip_headers_footers(page_texts: &mut [(u32, String)]) {
         .map(|(line, _)| line)
         .collect();
 
+    (headers, footers)
+}
+
+/// Strip detected headers/footers from page texts.
+fn apply_strip_headers_footers(
+    page_texts: &mut [(u32, String)],
+    headers: &[String],
+    footers: &[String],
+) {
     if headers.is_empty() && footers.is_empty() {
         return;
     }
@@ -167,7 +174,6 @@ fn strip_headers_footers(page_texts: &mut [(u32, String)]) {
         footers.len()
     );
 
-    // Strip them from all pages
     for (_, text) in page_texts.iter_mut() {
         let lines: Vec<&str> = text.lines().collect();
         let filtered: Vec<&str> = lines
@@ -189,6 +195,10 @@ pub struct ProcessingResult {
     pub metadata_path: PathBuf,
     /// Number of images processed.
     pub image_count: u32,
+    /// Path to the trash detection JSON file (if any trash detected).
+    pub trash_path: Option<PathBuf>,
+    /// Number of trash items detected.
+    pub trash_count: u32,
 }
 
 /// Result of processing a single page (returned from async page processing).
@@ -550,34 +560,58 @@ pub async fn process_pdf(
     let config_clone = config.clone();
     let doc_stem_clone = doc_stem.clone();
 
-    let page_data_results: Vec<(u32, CoreResult<PageData>)> =
-        tokio::task::spawn_blocking(move || {
-            let engine = PdfEngine::new()?;
-            let doc = engine.open_document(&pdf_path_owned)?;
-            let total_pages = PdfEngine::page_count(&doc);
+    // Returns (page_data_results, page_texts_for_trash_detection)
+    let (page_data_results, page_texts_for_trash): (
+        Vec<(u32, CoreResult<PageData>)>,
+        Vec<(u32, String)>,
+    ) = tokio::task::spawn_blocking(move || {
+        let engine = PdfEngine::new()?;
+        let doc = engine.open_document(&pdf_path_owned)?;
+        let total_pages = PdfEngine::page_count(&doc);
 
-            let start = start_page.unwrap_or(0);
-            let end = end_page.unwrap_or(total_pages).min(total_pages);
+        let start = start_page.unwrap_or(0);
+        let end = end_page.unwrap_or(total_pages).min(total_pages);
 
-            tracing::info!(
-                "Processing: {} | Pages: {}-{} (of {})",
-                doc_stem_clone,
-                start + 1,
-                end,
-                total_pages
-            );
+        tracing::info!(
+            "Processing: {} | Pages: {}-{} (of {})",
+            doc_stem_clone,
+            start + 1,
+            end,
+            total_pages
+        );
 
-            let mut results = Vec::new();
-            for page_num in start..end {
-                let data = extract_page_data(&doc, page_num, &doc_stem_clone, &config_clone);
-                results.push((page_num, data));
-            }
+        let mut results = Vec::new();
+        let mut texts = Vec::new();
+        for page_num in start..end {
+            // Extract text for trash detection before full page data extraction
+            let page = doc.pages().get(page_num as u16).map_err(|e| {
+                CoreError::Pdf(format!("Failed to get page {}: {e}", page_num + 1))
+            })?;
+            let raw_text = PdfEngine::extract_page_text(&page);
+            let clean_text = cleanup_extracted_text(&raw_text);
+            texts.push((page_num, clean_text));
 
-            Ok::<_, CoreError>(results)
-        })
-        .await
-        .map_err(|e| CoreError::Pdf(format!("Blocking task panicked: {e}")))?
-        ?;
+            let data = extract_page_data(&doc, page_num, &doc_stem_clone, &config_clone);
+            results.push((page_num, data));
+        }
+
+        Ok::<_, CoreError>((results, texts))
+    })
+    .await
+    .map_err(|e| CoreError::Pdf(format!("Blocking task panicked: {e}")))?
+    ?;
+
+    // Trash detection on extracted text
+    let (headers, footers) = detect_headers_footers(&page_texts_for_trash);
+    let trash_items = if config.detect_trash {
+        let mut items = crate::trash::detect_trash(&page_texts_for_trash);
+        items.extend(crate::trash::create_header_footer_detections(
+            &page_texts_for_trash, &headers, &footers,
+        ));
+        items
+    } else {
+        vec![]
+    };
 
     let total_pages = page_data_results.len() as u32;
     reporter.on_pdf_start(&doc_stem, total_pages);
@@ -674,6 +708,18 @@ pub async fn process_pdf(
     let image_count = metadata_catalog.len() as u32;
     reporter.on_pdf_complete(&doc_stem, image_count);
 
+    // Save trash detection results
+    let trash_count = trash_items.len() as u32;
+    let trash_path = if !trash_items.is_empty() {
+        let path = output_dir.join(format!("{doc_stem}_trash.json"));
+        let json = serde_json::to_string_pretty(&trash_items)?;
+        tokio::fs::write(&path, &json).await?;
+        tracing::info!("Trash detected: {} items -> {}", trash_count, path.display());
+        Some(path)
+    } else {
+        None
+    };
+
     tracing::info!(
         "Markdown: {} ({:.1} KB)",
         md_path.display(),
@@ -685,6 +731,8 @@ pub async fn process_pdf(
         markdown_path: md_path,
         metadata_path: meta_path,
         image_count,
+        trash_path,
+        trash_count,
     })
 }
 
@@ -733,8 +781,20 @@ async fn process_pdf_text_only(
     .map_err(|e| CoreError::Pdf(format!("Blocking task panicked: {e}")))?
     ?;
 
-    // Strip repeated headers/footers
-    strip_headers_footers(&mut page_texts);
+    // Detect and strip repeated headers/footers
+    let (headers, footers) = detect_headers_footers(&page_texts);
+    apply_strip_headers_footers(&mut page_texts, &headers, &footers);
+
+    // Trash detection
+    let trash_items = if config.detect_trash {
+        let mut items = crate::trash::detect_trash(&page_texts);
+        items.extend(crate::trash::create_header_footer_detections(
+            &page_texts, &headers, &footers,
+        ));
+        items
+    } else {
+        vec![]
+    };
 
     let total_pages = page_texts.len() as u32;
     reporter.on_pdf_start(doc_stem, total_pages);
@@ -771,6 +831,18 @@ async fn process_pdf_text_only(
     // Empty metadata for text-only mode
     tokio::fs::write(&meta_path, "[]").await?;
 
+    // Save trash detection results
+    let trash_count = trash_items.len() as u32;
+    let trash_path = if !trash_items.is_empty() {
+        let path = output_dir.join(format!("{doc_stem}_trash.json"));
+        let json = serde_json::to_string_pretty(&trash_items)?;
+        tokio::fs::write(&path, &json).await?;
+        tracing::info!("Trash detected: {} items -> {}", trash_count, path.display());
+        Some(path)
+    } else {
+        None
+    };
+
     reporter.on_pdf_complete(doc_stem, 0);
 
     tracing::info!(
@@ -783,5 +855,90 @@ async fn process_pdf_text_only(
         markdown_path: md_path,
         metadata_path: meta_path,
         image_count: 0,
+        trash_path,
+        trash_count,
     })
+}
+
+/// Remove specified pages from an enriched markdown file and save as `_cleaned.md`.
+///
+/// Pages are identified by `## Page N` section headers. `pages_to_remove` contains
+/// 1-indexed page numbers. Returns `(cleaned_path, cleaned_content)`.
+pub async fn clean_markdown(
+    markdown_path: &Path,
+    pages_to_remove: &[u32],
+) -> CoreResult<(PathBuf, String)> {
+    use std::collections::HashSet;
+
+    let content = tokio::fs::read_to_string(markdown_path).await?;
+    let remove_set: HashSet<u32> = pages_to_remove.iter().copied().collect();
+
+    let mut cleaned_sections = Vec::new();
+    let mut current_section = String::new();
+    let mut current_page: Option<u32> = None;
+    let mut in_header = true; // True until we hit the first ## Page section
+
+    for line in content.lines() {
+        // Check if this is a page section header: "## Page N"
+        if let Some(page_num) = parse_page_header(line) {
+            // Flush previous section
+            if in_header {
+                // Everything before first ## Page is the document header — always keep
+                cleaned_sections.push(current_section.clone());
+                current_section.clear();
+                in_header = false;
+            } else if let Some(prev_page) = current_page {
+                if !remove_set.contains(&prev_page) {
+                    cleaned_sections.push(current_section.clone());
+                }
+                current_section.clear();
+            }
+            current_page = Some(page_num);
+        }
+
+        current_section.push_str(line);
+        current_section.push('\n');
+    }
+
+    // Flush last section
+    if let Some(prev_page) = current_page {
+        if !remove_set.contains(&prev_page) {
+            cleaned_sections.push(current_section);
+        }
+    } else {
+        // No page sections found, keep everything
+        cleaned_sections.push(current_section);
+    }
+
+    let cleaned_content = cleaned_sections.join("");
+
+    // Build cleaned path: replace _enriched.md with _cleaned.md
+    let stem = markdown_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("document");
+    let cleaned_stem = stem.replace("_enriched", "_cleaned");
+    let cleaned_path = markdown_path.with_file_name(format!("{cleaned_stem}.md"));
+
+    tokio::fs::write(&cleaned_path, &cleaned_content).await?;
+
+    tracing::info!(
+        "Cleaned markdown: {} (removed {} pages)",
+        cleaned_path.display(),
+        pages_to_remove.len()
+    );
+
+    Ok((cleaned_path, cleaned_content))
+}
+
+/// Parse "## Page N" header and return N (1-indexed).
+fn parse_page_header(line: &str) -> Option<u32> {
+    let trimmed = line.trim();
+    if trimmed.starts_with("## Page ") {
+        trimmed
+            .strip_prefix("## Page ")
+            .and_then(|rest| rest.trim().parse::<u32>().ok())
+    } else {
+        None
+    }
 }
