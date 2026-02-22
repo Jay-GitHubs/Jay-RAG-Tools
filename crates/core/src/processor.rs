@@ -6,7 +6,11 @@ use crate::progress::ProgressReporter;
 use crate::prompts::get_prompts;
 use crate::provider::VisionProvider;
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use tokio::sync::Semaphore;
+use tokio::task::JoinSet;
 
 /// Truncate a string to at most `max_bytes` bytes, ensuring the cut
 /// lands on a valid UTF-8 char boundary (safe for Thai multi-byte text).
@@ -21,6 +25,162 @@ fn truncate_str(s: &str, max_bytes: usize) -> &str {
     &s[..end]
 }
 
+/// Clean up raw pdfium text for better RAG quality.
+///
+/// Joins broken lines, normalizes whitespace, and preserves paragraph boundaries.
+fn cleanup_extracted_text(text: &str) -> String {
+    if text.is_empty() {
+        return String::new();
+    }
+
+    let raw_lines: Vec<&str> = text.split('\n').collect();
+    let mut paragraphs: Vec<String> = Vec::new();
+    let mut current_para = String::new();
+
+    for line in &raw_lines {
+        let trimmed = line.trim();
+
+        // Empty line = paragraph boundary
+        if trimmed.is_empty() {
+            if !current_para.is_empty() {
+                paragraphs.push(current_para.clone());
+                current_para.clear();
+            }
+            continue;
+        }
+
+        // Normalize internal whitespace (collapse runs of 2+ spaces to single space)
+        // But skip lines that look like tables (3+ columns separated by whitespace)
+        let normalized = if looks_like_table_line(trimmed) {
+            trimmed.to_string()
+        } else {
+            trimmed.split_whitespace().collect::<Vec<_>>().join(" ")
+        };
+
+        // Decide whether to join with previous line or start a new line
+        if current_para.is_empty() {
+            current_para = normalized;
+        } else if should_break_before(&normalized) || should_break_after(&current_para) {
+            // Keep the break — start a new line within the paragraph
+            current_para.push('\n');
+            current_para.push_str(&normalized);
+        } else {
+            // Join with previous line
+            current_para.push(' ');
+            current_para.push_str(&normalized);
+        }
+    }
+
+    if !current_para.is_empty() {
+        paragraphs.push(current_para);
+    }
+
+    paragraphs.join("\n\n")
+}
+
+/// Check if a line looks like it's part of a table (has 3+ whitespace-separated columns).
+fn looks_like_table_line(line: &str) -> bool {
+    // Count segments separated by 2+ spaces
+    let segments: Vec<&str> = line.split("  ").filter(|s| !s.trim().is_empty()).collect();
+    segments.len() >= 3
+}
+
+/// Check if a new line should NOT be joined to the previous one.
+fn should_break_before(line: &str) -> bool {
+    let first_char = line.chars().next().unwrap_or(' ');
+    // Bullet points, numbered lists, markdown headers
+    line.starts_with("- ")
+        || line.starts_with("* ")
+        || line.starts_with("• ")
+        || line.starts_with("# ")
+        || line.starts_with("> ")
+        || (first_char.is_ascii_digit() && line.contains(". "))
+}
+
+/// Check if the current paragraph line signals the end of a logical unit.
+fn should_break_after(line: &str) -> bool {
+    if line.is_empty() {
+        return false;
+    }
+    let last_char = line.chars().last().unwrap_or(' ');
+    // Sentence-ending punctuation (including Thai markers)
+    matches!(last_char, '.' | '!' | '?' | ':' | 'ๆ' | '।')
+        || line.ends_with("ครับ")
+        || line.ends_with("ค่ะ")
+        || line.ends_with("นะคะ")
+        || line.ends_with("นะครับ")
+}
+
+/// Detect repeated text across pages (headers/footers) and strip it.
+fn strip_headers_footers(page_texts: &mut [(u32, String)]) {
+    if page_texts.len() < 3 {
+        return;
+    }
+
+    let total = page_texts.len();
+    let threshold = (total as f64 * 0.6).ceil() as usize;
+
+    // Collect first 3 and last 3 lines of each page
+    let mut first_lines: HashMap<String, usize> = HashMap::new();
+    let mut last_lines: HashMap<String, usize> = HashMap::new();
+
+    for (_, text) in page_texts.iter() {
+        let lines: Vec<&str> = text.lines().collect();
+
+        // First 3 lines (potential headers)
+        for line in lines.iter().take(3) {
+            let trimmed = line.trim().to_string();
+            if !trimmed.is_empty() && trimmed.len() < 200 {
+                *first_lines.entry(trimmed).or_insert(0) += 1;
+            }
+        }
+
+        // Last 3 lines (potential footers)
+        for line in lines.iter().rev().take(3) {
+            let trimmed = line.trim().to_string();
+            if !trimmed.is_empty() && trimmed.len() < 200 {
+                *last_lines.entry(trimmed).or_insert(0) += 1;
+            }
+        }
+    }
+
+    // Identify headers and footers (appear in >60% of pages)
+    let headers: Vec<String> = first_lines
+        .into_iter()
+        .filter(|(_, count)| *count >= threshold)
+        .map(|(line, _)| line)
+        .collect();
+
+    let footers: Vec<String> = last_lines
+        .into_iter()
+        .filter(|(_, count)| *count >= threshold)
+        .map(|(line, _)| line)
+        .collect();
+
+    if headers.is_empty() && footers.is_empty() {
+        return;
+    }
+
+    tracing::info!(
+        "Detected {} header(s) and {} footer(s) to strip",
+        headers.len(),
+        footers.len()
+    );
+
+    // Strip them from all pages
+    for (_, text) in page_texts.iter_mut() {
+        let lines: Vec<&str> = text.lines().collect();
+        let filtered: Vec<&str> = lines
+            .into_iter()
+            .filter(|line| {
+                let trimmed = line.trim();
+                !headers.iter().any(|h| h == trimmed) && !footers.iter().any(|f| f == trimmed)
+            })
+            .collect();
+        *text = filtered.join("\n").trim().to_string();
+    }
+}
+
 /// Result of processing a single PDF.
 pub struct ProcessingResult {
     /// Path to the output enriched Markdown file.
@@ -31,14 +191,22 @@ pub struct ProcessingResult {
     pub image_count: u32,
 }
 
+/// Result of processing a single page (returned from async page processing).
+struct PageResult {
+    page_num: u32,
+    content: String,
+    metadata: Vec<ImageMetadata>,
+}
+
 /// Data extracted synchronously from a PDF page before async LLM calls.
 enum PageData {
-    /// Strategy A: Image-heavy page rendered as full image.
+    /// Strategy A: Image-heavy page rendered as full image (hybrid: also includes pdfium text).
     FullPage {
         img_b64: String,
         img_bytes: Vec<u8>,
         img_filename: String,
         coverage: f64,
+        pdfium_text: String,
     },
     /// Strategy B: Mixed page with text and individual images.
     Mixed {
@@ -61,21 +229,25 @@ fn extract_page_data(
     })?;
 
     let coverage = PdfEngine::get_image_coverage(&page);
-    // Strategy A: Image-heavy page
+    // Strategy A: Image-heavy page (hybrid: also extract text)
     if coverage >= config.page_as_image_threshold {
         let (img_b64, img_bytes) = PdfEngine::render_page_as_image(&page, config.image_dpi)?;
         let img_filename = format!("{doc_stem}_page_{:03}_full.png", page_num + 1);
+        let text = PdfEngine::extract_page_text(&page);
+        let text = cleanup_extracted_text(&text);
 
         Ok(PageData::FullPage {
             img_b64,
             img_bytes,
             img_filename,
             coverage,
+            pdfium_text: text,
         })
     }
     // Strategy B: Mixed page
     else {
         let text = PdfEngine::extract_page_text(&page);
+        let text = cleanup_extracted_text(&text);
         let images = PdfEngine::extract_page_images(&page, config.min_image_size)?;
 
         // Table detection (check if text looks tabular)
@@ -97,20 +269,22 @@ fn extract_page_data(
     }
 }
 
-/// Process a single page: first extract data synchronously, then make async LLM calls.
+/// Process a single page asynchronously with LLM calls.
+///
+/// Returns a `PageResult` with content and metadata (no shared mutable state).
 async fn process_page_async(
     page_data: PageData,
     page_num: u32,
-    provider: &dyn VisionProvider,
-    images_dir: &Path,
-    doc_stem: &str,
-    metadata_catalog: &mut Vec<ImageMetadata>,
-    config: &ProcessingConfig,
-    reporter: &dyn ProgressReporter,
-) -> CoreResult<String> {
+    provider: Arc<dyn VisionProvider>,
+    images_dir: PathBuf,
+    doc_stem: String,
+    config: ProcessingConfig,
+    reporter: Arc<dyn ProgressReporter>,
+) -> CoreResult<PageResult> {
     let prompts = get_prompts(config.language);
     let page_label = format!("Page {}", page_num + 1);
     let mut lines = vec![format!("\n\n---\n## {page_label}\n")];
+    let mut metadata = Vec::new();
 
     match page_data {
         PageData::FullPage {
@@ -118,9 +292,10 @@ async fn process_page_async(
             img_bytes,
             img_filename,
             coverage,
+            pdfium_text,
         } => {
             tracing::info!(
-                "[Page {}] image-heavy ({:.0}%) — full page render",
+                "[Page {}] image-heavy ({:.0}%) — full page render (hybrid)",
                 page_num + 1,
                 coverage * 100.0
             );
@@ -129,13 +304,21 @@ async fn process_page_async(
             tokio::fs::create_dir_all(img_path.parent().unwrap()).await?;
             tokio::fs::write(&img_path, &img_bytes).await?;
 
-            let description = provider
+            let description = match provider
                 .ask(&img_b64, prompts.full_page, config.max_retries)
-                .await?;
+                .await
+            {
+                Ok(desc) => desc,
+                Err(e) => {
+                    reporter.on_error(page_num + 1, &format!("{e}"));
+                    tracing::warn!("Full-page description failed on page {}: {e}", page_num + 1);
+                    format!("[ไม่สามารถอธิบายภาพได้: {e}]")
+                }
+            };
 
             let image_ref = format!("{doc_stem}/{img_filename}");
 
-            metadata_catalog.push(ImageMetadata {
+            metadata.push(ImageMetadata {
                 image_file: image_ref.clone(),
                 page: page_num + 1,
                 index: None,
@@ -143,7 +326,7 @@ async fn process_page_async(
                 width: None,
                 height: None,
                 description: description.clone(),
-                source_doc: doc_stem.to_string(),
+                source_doc: doc_stem.clone(),
                 provider: provider.provider_name().to_string(),
                 model: provider.model_name().to_string(),
             });
@@ -154,6 +337,11 @@ async fn process_page_async(
                 truncate_str(&description, 80),
             );
 
+            // Strategy A hybrid: include pdfium text alongside LLM description
+            if !pdfium_text.is_empty() {
+                lines.push(pdfium_text);
+                lines.push(String::new());
+            }
             lines.push(format!("[IMAGE:{image_ref}]\n"));
             lines.push(description);
         }
@@ -182,13 +370,24 @@ async fn process_page_async(
                     tokio::fs::create_dir_all(img_path.parent().unwrap()).await?;
                     tokio::fs::write(&img_path, &bytes).await?;
 
-                    let description = provider
+                    let description = match provider
                         .ask(&b64, prompts.table_extraction, config.max_retries)
-                        .await?;
+                        .await
+                    {
+                        Ok(desc) => desc,
+                        Err(e) => {
+                            reporter.on_error(page_num + 1, &format!("{e}"));
+                            tracing::warn!(
+                                "Table extraction failed on page {}: {e}",
+                                page_num + 1
+                            );
+                            format!("[ไม่สามารถแปลงตารางได้: {e}]")
+                        }
+                    };
 
                     let image_ref = format!("{doc_stem}/{filename}");
 
-                    metadata_catalog.push(ImageMetadata {
+                    metadata.push(ImageMetadata {
                         image_file: image_ref.clone(),
                         page: page_num + 1,
                         index: None,
@@ -196,7 +395,7 @@ async fn process_page_async(
                         width: None,
                         height: None,
                         description: description.clone(),
-                        source_doc: doc_stem.to_string(),
+                        source_doc: doc_stem.clone(),
                         provider: provider.provider_name().to_string(),
                         model: provider.model_name().to_string(),
                     });
@@ -205,72 +404,123 @@ async fn process_page_async(
                 }
             }
 
-            // Extract individual images
+            // Extract individual images (concurrently)
             if !images.is_empty() {
                 tracing::info!(
-                    "[Page {}] {} image(s) — saving & describing",
+                    "[Page {}] {} image(s) — saving & describing concurrently",
                     page_num + 1,
                     images.len()
                 );
-            }
 
-            for img in &images {
-                let img_filename = format!(
-                    "{doc_stem}_page_{:03}_img{}.png",
-                    page_num + 1,
-                    img.index
-                );
-                let img_path = images_dir.join(&img_filename);
+                let img_semaphore = Arc::new(Semaphore::new(config.max_concurrent_images));
+                let mut img_join_set = JoinSet::new();
 
-                tokio::fs::create_dir_all(img_path.parent().unwrap()).await?;
-                tokio::fs::write(&img_path, &img.bytes).await?;
+                for img in images {
+                    let permit = img_semaphore.clone().acquire_owned().await.unwrap();
+                    let provider = provider.clone();
+                    let prompt = prompts.single_image.to_string();
+                    let images_dir = images_dir.clone();
+                    let doc_stem = doc_stem.clone();
+                    let max_retries = config.max_retries;
+                    let page_num = page_num;
+                    let reporter = reporter.clone();
 
-                let description = provider
-                    .ask(&img.base64, prompts.single_image, config.max_retries)
-                    .await?;
+                    img_join_set.spawn(async move {
+                        let _permit = permit;
 
-                let image_ref = format!("{doc_stem}/{img_filename}");
+                        let img_filename = format!(
+                            "{doc_stem}_page_{:03}_img{}.png",
+                            page_num + 1,
+                            img.index
+                        );
+                        let img_path = images_dir.join(&img_filename);
 
-                metadata_catalog.push(ImageMetadata {
-                    image_file: image_ref.clone(),
-                    page: page_num + 1,
-                    index: Some(img.index),
-                    image_type: ImageType::ExtractedImage,
-                    width: Some(img.width),
-                    height: Some(img.height),
-                    description: description.clone(),
-                    source_doc: doc_stem.to_string(),
-                    provider: provider.provider_name().to_string(),
-                    model: provider.model_name().to_string(),
-                });
+                        tokio::fs::create_dir_all(img_path.parent().unwrap()).await?;
+                        tokio::fs::write(&img_path, &img.bytes).await?;
 
-                reporter.on_image_processed(
-                    page_num + 1,
-                    img.index,
-                    truncate_str(&description, 80),
-                );
+                        let description = match provider.ask(&img.base64, &prompt, max_retries).await
+                        {
+                            Ok(desc) => desc,
+                            Err(e) => {
+                                reporter.on_error(page_num + 1, &format!("{e}"));
+                                tracing::warn!(
+                                    "Image description failed on page {} img {}: {e}",
+                                    page_num + 1,
+                                    img.index
+                                );
+                                format!("[ไม่สามารถอธิบายภาพได้: {e}]")
+                            }
+                        };
 
-                lines.push(format!(
-                    "\n[IMAGE:{image_ref}]\n**[ภาพที่ {}]:** {description}\n",
-                    img.index
-                ));
+                        let image_ref = format!("{doc_stem}/{img_filename}");
+
+                        let meta = ImageMetadata {
+                            image_file: image_ref.clone(),
+                            page: page_num + 1,
+                            index: Some(img.index),
+                            image_type: ImageType::ExtractedImage,
+                            width: Some(img.width),
+                            height: Some(img.height),
+                            description: description.clone(),
+                            source_doc: doc_stem.clone(),
+                            provider: provider.provider_name().to_string(),
+                            model: provider.model_name().to_string(),
+                        };
+
+                        reporter.on_image_processed(
+                            page_num + 1,
+                            img.index,
+                            truncate_str(&description, 80),
+                        );
+
+                        Ok::<_, CoreError>((img.index, image_ref, description, meta))
+                    });
+                }
+
+                // Collect image results and sort by index
+                let mut img_results = Vec::new();
+                while let Some(result) = img_join_set.join_next().await {
+                    match result {
+                        Ok(Ok(img_result)) => img_results.push(img_result),
+                        Ok(Err(e)) => {
+                            tracing::error!("Image task error on page {}: {e}", page_num + 1);
+                        }
+                        Err(e) => {
+                            tracing::error!("Image task panicked on page {}: {e}", page_num + 1);
+                        }
+                    }
+                }
+
+                // Sort by image index to maintain order
+                img_results.sort_by_key(|(idx, _, _, _)| *idx);
+
+                for (idx, image_ref, description, meta) in img_results {
+                    metadata.push(meta);
+                    lines.push(format!(
+                        "\n[IMAGE:{image_ref}]\n**[ภาพที่ {idx}]:** {description}\n"
+                    ));
+                }
             }
         }
     }
 
-    Ok(lines.join("\n"))
+    Ok(PageResult {
+        page_num,
+        content: lines.join("\n"),
+        metadata,
+    })
 }
 
 /// Process an entire PDF file.
 ///
-/// All pdfium operations happen synchronously (in spawn_blocking if needed),
-/// then async LLM calls are made for each page's extracted data.
+/// All pdfium operations happen synchronously (in spawn_blocking),
+/// then async LLM calls are made concurrently for each page's extracted data.
 pub async fn process_pdf(
     pdf_path: &Path,
     output_dir: &Path,
-    provider: Option<&dyn VisionProvider>,
+    provider: Option<Arc<dyn VisionProvider>>,
     config: &ProcessingConfig,
-    reporter: &dyn ProgressReporter,
+    reporter: Arc<dyn ProgressReporter>,
     start_page: Option<u32>,
     end_page: Option<u32>,
 ) -> CoreResult<ProcessingResult> {
@@ -282,10 +532,15 @@ pub async fn process_pdf(
 
     // Text-only mode: extract text only, no images, no LLM calls
     if config.text_only {
-        return process_pdf_text_only(pdf_path, output_dir, &doc_stem, config, reporter, start_page, end_page).await;
+        return process_pdf_text_only(
+            pdf_path, output_dir, &doc_stem, config, reporter.as_ref(), start_page, end_page,
+        )
+        .await;
     }
 
-    let provider = provider.ok_or_else(|| CoreError::Config("Vision LLM provider required when text_only is false".into()))?;
+    let provider = provider.ok_or_else(|| {
+        CoreError::Config("Vision LLM provider required when text_only is false".into())
+    })?;
 
     let images_dir = output_dir.join("images").join(&doc_stem);
     tokio::fs::create_dir_all(&images_dir).await?;
@@ -338,47 +593,72 @@ pub async fn process_pdf(
     ];
     let mut metadata_catalog: Vec<ImageMetadata> = Vec::new();
 
-    // Now process each page's extracted data with async LLM calls
-    for (page_num, page_data_result) in page_data_results {
-        reporter.on_page_start(page_num + 1, total_pages);
+    // Process pages concurrently with semaphore
+    let page_semaphore = Arc::new(Semaphore::new(config.max_concurrent_pages));
+    let mut join_set = JoinSet::new();
 
-        match page_data_result {
-            Ok(page_data) => {
-                match process_page_async(
-                    page_data,
-                    page_num,
-                    provider,
-                    &images_dir,
-                    &doc_stem,
-                    &mut metadata_catalog,
-                    config,
-                    reporter,
-                )
-                .await
-                {
-                    Ok(content) => all_content.push(content),
-                    Err(e) => {
-                        let err_msg = format!("{e}");
-                        reporter.on_error(page_num + 1, &err_msg);
-                        tracing::error!("Error on page {}: {}", page_num + 1, err_msg);
-                        all_content.push(format!(
-                            "\n\n---\n## Page {}\n[Error: {err_msg}]\n",
-                            page_num + 1
-                        ));
-                    }
+    for (page_num, page_data_result) in page_data_results {
+        let permit = page_semaphore.clone().acquire_owned().await.unwrap();
+        let images_dir = images_dir.clone();
+        let doc_stem = doc_stem.clone();
+        let config = config.clone();
+        let provider = provider.clone();
+        let reporter = reporter.clone();
+
+        join_set.spawn(async move {
+            let _permit = permit;
+            reporter.on_page_start(page_num + 1, total_pages);
+
+            let result = match page_data_result {
+                Ok(page_data) => {
+                    process_page_async(
+                        page_data,
+                        page_num,
+                        provider,
+                        images_dir,
+                        doc_stem,
+                        config,
+                        reporter.clone(),
+                    )
+                    .await
                 }
+                Err(e) => Ok(PageResult {
+                    page_num,
+                    content: format!(
+                        "\n\n---\n## Page {}\n[Error: {e}]\n",
+                        page_num + 1
+                    ),
+                    metadata: vec![],
+                }),
+            };
+
+            reporter.on_page_complete(page_num + 1, total_pages);
+            result
+        });
+    }
+
+    // Collect results
+    let mut page_results: Vec<PageResult> = Vec::new();
+    while let Some(result) = join_set.join_next().await {
+        match result {
+            Ok(Ok(page_result)) => page_results.push(page_result),
+            Ok(Err(e)) => {
+                tracing::error!("Page processing error: {e}");
+                // We don't know the page_num here, but we log the error
             }
             Err(e) => {
-                let err_msg = format!("{e}");
-                reporter.on_error(page_num + 1, &err_msg);
-                all_content.push(format!(
-                    "\n\n---\n## Page {}\n[Error: {err_msg}]\n",
-                    page_num + 1
-                ));
+                tracing::error!("Page task panicked: {e}");
             }
         }
+    }
 
-        reporter.on_page_complete(page_num + 1, total_pages);
+    // Sort by page number to maintain order
+    page_results.sort_by_key(|r| r.page_num);
+
+    // Assemble content and metadata
+    for pr in &page_results {
+        all_content.push(pr.content.clone());
+        metadata_catalog.extend(pr.metadata.iter().cloned());
     }
 
     // Save outputs
@@ -421,7 +701,7 @@ async fn process_pdf_text_only(
     let pdf_path_owned = pdf_path.to_path_buf();
     let doc_stem_clone = doc_stem.to_string();
 
-    let page_texts: Vec<(u32, String)> = tokio::task::spawn_blocking(move || {
+    let mut page_texts: Vec<(u32, String)> = tokio::task::spawn_blocking(move || {
         let engine = PdfEngine::new()?;
         let doc = engine.open_document(&pdf_path_owned)?;
         let total_pages = PdfEngine::page_count(&doc);
@@ -443,6 +723,7 @@ async fn process_pdf_text_only(
                 CoreError::Pdf(format!("Failed to get page {}: {e}", page_num + 1))
             })?;
             let text = PdfEngine::extract_page_text(&page);
+            let text = cleanup_extracted_text(&text);
             results.push((page_num, text));
         }
 
@@ -451,6 +732,9 @@ async fn process_pdf_text_only(
     .await
     .map_err(|e| CoreError::Pdf(format!("Blocking task panicked: {e}")))?
     ?;
+
+    // Strip repeated headers/footers
+    strip_headers_footers(&mut page_texts);
 
     let total_pages = page_texts.len() as u32;
     reporter.on_pdf_start(doc_stem, total_pages);

@@ -206,13 +206,17 @@ impl VisionProvider for GenaiProvider {
                             retries,
                             e
                         );
-                        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                        let delay = std::time::Duration::from_millis(1000 * 2u64.pow(attempt));
+                        tokio::time::sleep(delay).await;
                     }
                 }
             }
         }
 
-        Ok(format!("[{} error: {last_error}]", self.meta.display_name))
+        Err(CoreError::Provider(format!(
+            "{} failed after {} attempts: {last_error}",
+            self.meta.display_name, retries
+        )))
     }
 
     async fn check(&self) -> CoreResult<()> {

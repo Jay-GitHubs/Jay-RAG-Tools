@@ -6,6 +6,7 @@ use jay_rag_core::progress::ProgressReporter;
 use jay_rag_core::provider;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
 
 /// JAY-RAG-TOOLS — Thai-first PDF Vision Processor for RAG pipelines
 #[derive(Parser)]
@@ -64,6 +65,10 @@ struct ProcessArgs {
     /// Text-only mode: extract text only, skip all images and Vision LLM calls
     #[arg(long)]
     text_only: bool,
+
+    /// Max pages processed concurrently (default: 4)
+    #[arg(long, default_value = "4")]
+    concurrency: usize,
 }
 
 #[derive(Parser)]
@@ -155,11 +160,12 @@ async fn run_process(args: ProcessArgs) -> Result<()> {
         language: lang,
         table_extraction: !args.no_tables && !args.text_only,
         text_only: args.text_only,
+        max_concurrent_pages: args.concurrency,
         ..Default::default()
     };
 
     // Create provider (skip when text_only)
-    let vision_provider: Option<Box<dyn jay_rag_core::VisionProvider>> = if args.text_only {
+    let vision_provider: Option<Arc<dyn jay_rag_core::VisionProvider>> = if args.text_only {
         println!("\nText-only mode: skipping Vision LLM (no images, no API calls)");
         None
     } else {
@@ -174,7 +180,7 @@ async fn run_process(args: ProcessArgs) -> Result<()> {
             p.check().await?;
         }
 
-        Some(p)
+        Some(Arc::from(p))
     };
 
     // Create output directory
@@ -203,16 +209,16 @@ async fn run_process(args: ProcessArgs) -> Result<()> {
         anyhow::bail!("No PDF files found.");
     }
 
-    let reporter = CliProgressReporter::new();
+    let reporter: Arc<dyn ProgressReporter> = Arc::new(CliProgressReporter::new());
     let mut results = Vec::new();
 
     for pdf_path in &pdfs {
         let result = jay_rag_core::process_pdf(
             pdf_path,
             &args.output,
-            vision_provider.as_deref(),
+            vision_provider.clone(),
             &config,
-            &reporter,
+            reporter.clone(),
             if args.start_page > 0 {
                 Some(args.start_page)
             } else {

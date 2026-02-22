@@ -64,6 +64,22 @@ pub struct ProcessingConfig {
     /// Text-only mode: extract text only, skip images and LLM calls (default: false).
     #[serde(default)]
     pub text_only: bool,
+
+    /// Max pages processed concurrently (default: 4).
+    #[serde(default = "default_concurrent_pages")]
+    pub max_concurrent_pages: usize,
+
+    /// Max images described concurrently within a single page (default: 5).
+    #[serde(default = "default_concurrent_images")]
+    pub max_concurrent_images: usize,
+}
+
+fn default_concurrent_pages() -> usize {
+    4
+}
+
+fn default_concurrent_images() -> usize {
+    5
 }
 
 impl Default for ProcessingConfig {
@@ -77,6 +93,8 @@ impl Default for ProcessingConfig {
             retry_delay_ms: 2000,
             table_extraction: true,
             text_only: false,
+            max_concurrent_pages: default_concurrent_pages(),
+            max_concurrent_images: default_concurrent_images(),
         }
     }
 }

@@ -128,11 +128,11 @@ pub async fn run_job(
         ..Default::default()
     };
 
-    let vision_provider: Option<Box<dyn jay_rag_core::VisionProvider>> = if text_only {
+    let vision_provider: Option<Arc<dyn jay_rag_core::VisionProvider>> = if text_only {
         None
     } else {
         match provider::create_provider(&provider_name, &model) {
-            Ok(p) => Some(p),
+            Ok(p) => Some(Arc::from(p)),
             Err(e) => {
                 queue.set_failed(&job_id, e.to_string()).await;
                 return;
@@ -140,18 +140,18 @@ pub async fn run_job(
         }
     };
 
-    let reporter = WebSocketReporter {
+    let reporter: Arc<dyn ProgressReporter> = Arc::new(WebSocketReporter {
         job_id,
         queue: queue.clone(),
         images_processed: Arc::new(Mutex::new(0)),
-    };
+    });
 
     match jay_rag_core::process_pdf(
         &pdf_path,
         &output_dir,
-        vision_provider.as_deref(),
+        vision_provider,
         &config,
-        &reporter,
+        reporter,
         start_page,
         end_page,
     )
