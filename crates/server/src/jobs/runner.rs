@@ -1,6 +1,6 @@
 use super::models::{JobProgress, JobResult, JobStatus};
 use super::queue::JobQueue;
-use jay_rag_core::config::{Language, ProcessingConfig};
+use jay_rag_core::config::{Language, ProcessingConfig, Quality};
 use jay_rag_core::progress::ProgressReporter;
 use jay_rag_core::provider;
 use std::path::PathBuf;
@@ -114,17 +114,20 @@ pub async fn run_job(
     end_page: Option<u32>,
     table_extraction: bool,
     text_only: bool,
+    quality: String,
 ) {
     queue
         .update_status(&job_id, JobStatus::Processing)
         .await;
 
     let lang = language.parse::<Language>().unwrap_or_default();
+    let quality = quality.parse::<Quality>().unwrap_or_default();
 
     let config = ProcessingConfig {
         language: lang,
         table_extraction: if text_only { false } else { table_extraction },
         text_only,
+        quality,
         ..Default::default()
     };
 

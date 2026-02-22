@@ -60,12 +60,78 @@ Please do the following:\n\
 3. Format the entire output as clean Markdown\n\
 Preserve all original text exactly as shown.";
 
+// --- High Quality (Vision-First) Prompts ---
+
+/// Thai high-quality prompt: expert OCR transcription from page image.
+pub const TH_HIGH_QUALITY: &str = "\
+คุณเป็นผู้เชี่ยวชาญด้าน OCR ภาษาไทย กรุณาถอดข้อความจากภาพหน้าเอกสารนี้อย่างละเอียดและแม่นยำที่สุด\n\
+\n\
+กฎที่ต้องปฏิบัติตาม:\n\
+1. คัดลอกข้อความทุกตัวอักษรตามที่ปรากฏในภาพ รวมถึงวรรณยุกต์ สระ และตัวเลขทั้งหมด\n\
+2. รักษาโครงสร้างเอกสาร: หัวข้อใช้ #/##/### ตามลำดับชั้น, รายการใช้ - หรือตัวเลข, ย่อหน้าคั่นด้วยบรรทัดว่าง\n\
+3. ตารางให้แปลงเป็น Markdown Table พร้อมหัวคอลัมน์ให้ครบถ้วน\n\
+4. ภาพ ไดอะแกรม หรือภาพหน้าจอ ให้อธิบายรายละเอียดเป็นภาษาไทย\n\
+5. ข้อความที่อ่านไม่ชัดให้ใส่ [ไม่ชัดเจน]\n\
+6. ห้ามแปลภาษา คงภาษาไทยไว้ทั้งหมด\n\
+7. ตอบเฉพาะเนื้อหา Markdown เท่านั้น ห้ามใส่คำอธิบายเพิ่มเติม";
+
+/// Thai high-quality prompt with pdfium text hint.
+pub const TH_HIGH_QUALITY_WITH_HINT: &str = "\
+คุณเป็นผู้เชี่ยวชาญด้าน OCR ภาษาไทย กรุณาถอดข้อความจากภาพหน้าเอกสารนี้อย่างละเอียดและแม่นยำที่สุด\n\
+\n\
+ด้านล่างนี้คือข้อความอ้างอิงที่สกัดจาก PDF โดยอัตโนมัติ อาจมีข้อผิดพลาด เช่น ลำดับตัวอักษรสลับ สระลอย วรรณยุกต์หาย ใช้เป็นตัวช่วยตรวจสอบคำที่ไม่ชัดเท่านั้น ภาพคือแหล่งข้อมูลหลัก\n\
+\n\
+--- ข้อความอ้างอิงจาก PDF ---\n\
+{hint_text}\n\
+--- สิ้นสุดข้อความอ้างอิง ---\n\
+\n\
+กฎที่ต้องปฏิบัติตาม:\n\
+1. คัดลอกข้อความทุกตัวอักษรตามที่ปรากฏในภาพ รวมถึงวรรณยุกต์ สระ และตัวเลขทั้งหมด\n\
+2. รักษาโครงสร้างเอกสาร: หัวข้อใช้ #/##/### ตามลำดับชั้น, รายการใช้ - หรือตัวเลข, ย่อหน้าคั่นด้วยบรรทัดว่าง\n\
+3. ตารางให้แปลงเป็น Markdown Table พร้อมหัวคอลัมน์ให้ครบถ้วน\n\
+4. ภาพ ไดอะแกรม หรือภาพหน้าจอ ให้อธิบายรายละเอียดเป็นภาษาไทย\n\
+5. ข้อความที่อ่านไม่ชัดให้ใส่ [ไม่ชัดเจน]\n\
+6. ห้ามแปลภาษา คงภาษาไทยไว้ทั้งหมด\n\
+7. ตอบเฉพาะเนื้อหา Markdown เท่านั้น ห้ามใส่คำอธิบายเพิ่มเติม";
+
+/// English high-quality prompt: expert OCR transcription from page image.
+pub const EN_HIGH_QUALITY: &str = "\
+You are an expert document OCR system. Transcribe this page image with maximum accuracy.\n\
+\n\
+Rules:\n\
+1. Transcribe every character exactly as shown in the image, including numbers, symbols, and punctuation\n\
+2. Preserve document structure: headings as #/##/###, lists as - or numbered, paragraphs separated by blank lines\n\
+3. Convert tables to Markdown tables with complete column headers\n\
+4. Describe images, diagrams, or screenshots in detail\n\
+5. Mark unclear text as [unclear]\n\
+6. Output clean Markdown only — no commentary or explanation";
+
+/// English high-quality prompt with pdfium text hint.
+pub const EN_HIGH_QUALITY_WITH_HINT: &str = "\
+You are an expert document OCR system. Transcribe this page image with maximum accuracy.\n\
+\n\
+Below is reference text extracted automatically from the PDF. It may contain errors such as wrong character ordering, missing diacritics, or garbled text. Use it only to verify ambiguous words — the image is the primary source.\n\
+\n\
+--- Reference text from PDF ---\n\
+{hint_text}\n\
+--- End reference text ---\n\
+\n\
+Rules:\n\
+1. Transcribe every character exactly as shown in the image, including numbers, symbols, and punctuation\n\
+2. Preserve document structure: headings as #/##/###, lists as - or numbered, paragraphs separated by blank lines\n\
+3. Convert tables to Markdown tables with complete column headers\n\
+4. Describe images, diagrams, or screenshots in detail\n\
+5. Mark unclear text as [unclear]\n\
+6. Output clean Markdown only — no commentary or explanation";
+
 /// A set of prompts for a specific language.
 #[derive(Debug, Clone)]
 pub struct Prompts {
     pub full_page: &'static str,
     pub single_image: &'static str,
     pub table_extraction: &'static str,
+    pub high_quality: &'static str,
+    pub high_quality_with_hint: &'static str,
 }
 
 /// Get the prompt set for the given language.
@@ -75,11 +141,15 @@ pub fn get_prompts(lang: Language) -> Prompts {
             full_page: TH_FULL_PAGE,
             single_image: TH_SINGLE_IMAGE,
             table_extraction: TH_TABLE_EXTRACTION,
+            high_quality: TH_HIGH_QUALITY,
+            high_quality_with_hint: TH_HIGH_QUALITY_WITH_HINT,
         },
         Language::En => Prompts {
             full_page: EN_FULL_PAGE,
             single_image: EN_SINGLE_IMAGE,
             table_extraction: EN_TABLE_EXTRACTION,
+            high_quality: EN_HIGH_QUALITY,
+            high_quality_with_hint: EN_HIGH_QUALITY_WITH_HINT,
         },
     }
 }

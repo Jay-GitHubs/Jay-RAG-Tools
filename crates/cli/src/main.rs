@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use indicatif::{ProgressBar, ProgressStyle};
-use jay_rag_core::config::{Language, ProcessingConfig};
+use jay_rag_core::config::{Language, ProcessingConfig, Quality};
 use jay_rag_core::progress::ProgressReporter;
 use jay_rag_core::provider;
 use std::path::PathBuf;
@@ -73,6 +73,10 @@ struct ProcessArgs {
     /// Disable trash detection
     #[arg(long)]
     no_detect_trash: bool,
+
+    /// Processing quality: "standard" (pdfium text + LLM for images) or "high" (every page → Vision LLM OCR)
+    #[arg(long, default_value = "standard", value_parser = ["standard", "high"])]
+    quality: String,
 
     /// Auto-strip detected trash pages from output (creates _cleaned.md).
     /// Optionally filter by type: toc,boilerplate,blank
@@ -164,6 +168,7 @@ async fn main() -> Result<()> {
 
 async fn run_process(args: ProcessArgs) -> Result<()> {
     let lang: Language = args.lang.parse().unwrap_or_default();
+    let quality: Quality = args.quality.parse().unwrap_or_default();
 
     let config = ProcessingConfig {
         language: lang,
@@ -171,8 +176,18 @@ async fn run_process(args: ProcessArgs) -> Result<()> {
         text_only: args.text_only,
         max_concurrent_pages: args.concurrency,
         detect_trash: !args.no_detect_trash,
+        quality,
         ..Default::default()
     };
+
+    // Print cost warning for high quality mode
+    if quality == Quality::High && !args.text_only {
+        println!();
+        println!("=== HIGH QUALITY MODE ===");
+        println!("  Every page → Vision LLM as 300 DPI image.");
+        println!("  Best Thai accuracy. Uses ~2-5x more tokens.");
+        println!("========================");
+    }
 
     // Create provider (skip when text_only)
     let vision_provider: Option<Arc<dyn jay_rag_core::VisionProvider>> = if args.text_only {

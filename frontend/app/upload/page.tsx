@@ -18,6 +18,7 @@ export default function UploadPage() {
     storage: "local",
     table_extraction: false,
     text_only: false,
+    quality: "standard",
     start_page: "",
     end_page: "",
     s3_bucket: "",

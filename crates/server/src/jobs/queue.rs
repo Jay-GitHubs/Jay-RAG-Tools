@@ -245,5 +245,6 @@ fn default_config() -> JobConfig {
         s3_bucket: None,
         s3_prefix: None,
         storage_path: None,
+        quality: "standard".to_string(),
     }
 }

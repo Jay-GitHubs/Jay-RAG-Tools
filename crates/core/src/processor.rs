@@ -1,4 +1,4 @@
-use crate::config::ProcessingConfig;
+use crate::config::{ProcessingConfig, Quality};
 use crate::error::{CoreError, CoreResult};
 use crate::metadata::{ImageMetadata, ImageType};
 use crate::pdf::{ExtractedImage, PdfEngine};
@@ -225,6 +225,13 @@ enum PageData {
         table_candidate: bool,
         table_img: Option<(String, Vec<u8>, String)>,
     },
+    /// High Quality: every page rendered as 300 DPI image for Vision LLM OCR.
+    HighQuality {
+        img_b64: String,
+        img_bytes: Vec<u8>,
+        img_filename: String,
+        pdfium_text: String,
+    },
 }
 
 /// Extract all data from a page synchronously (no await points).
@@ -237,6 +244,22 @@ fn extract_page_data(
     let page = doc.pages().get(page_num as u16).map_err(|e| {
         CoreError::Pdf(format!("Failed to get page {}: {e}", page_num + 1))
     })?;
+
+    // High Quality mode: render every page at 300+ DPI for Vision LLM OCR
+    if config.quality == Quality::High {
+        let dpi = config.image_dpi.max(300);
+        let (img_b64, img_bytes) = PdfEngine::render_page_as_image(&page, dpi)?;
+        let img_filename = format!("{doc_stem}_page_{:03}_hq.png", page_num + 1);
+        let text = PdfEngine::extract_page_text(&page);
+        let text = cleanup_extracted_text(&text);
+
+        return Ok(PageData::HighQuality {
+            img_b64,
+            img_bytes,
+            img_filename,
+            pdfium_text: text,
+        });
+    }
 
     let coverage = PdfEngine::get_image_coverage(&page);
     // Strategy A: Image-heavy page (hybrid: also extract text)
@@ -512,6 +535,74 @@ async fn process_page_async(
                 }
             }
         }
+
+        PageData::HighQuality {
+            img_b64,
+            img_bytes,
+            img_filename,
+            pdfium_text,
+        } => {
+            tracing::info!(
+                "[Page {}] High-quality mode — full page Vision LLM OCR",
+                page_num + 1
+            );
+
+            let img_path = images_dir.join(&img_filename);
+            tokio::fs::create_dir_all(img_path.parent().unwrap()).await?;
+            tokio::fs::write(&img_path, &img_bytes).await?;
+
+            // Build prompt: use hint variant if pdfium text is non-empty
+            let prompt = if !pdfium_text.is_empty() {
+                let hint = truncate_str(&pdfium_text, 4000);
+                prompts
+                    .high_quality_with_hint
+                    .replace("{hint_text}", hint)
+            } else {
+                prompts.high_quality.to_string()
+            };
+
+            let description = match provider.ask(&img_b64, &prompt, config.max_retries).await {
+                Ok(desc) => desc,
+                Err(e) => {
+                    reporter.on_error(page_num + 1, &format!("{e}"));
+                    tracing::warn!(
+                        "High-quality OCR failed on page {}: {e} — falling back to pdfium text",
+                        page_num + 1
+                    );
+                    // Graceful fallback: use pdfium text when LLM fails
+                    if !pdfium_text.is_empty() {
+                        pdfium_text.clone()
+                    } else {
+                        format!("[ไม่สามารถถอดข้อความได้: {e}]")
+                    }
+                }
+            };
+
+            let image_ref = format!("{doc_stem}/{img_filename}");
+
+            metadata.push(ImageMetadata {
+                image_file: image_ref.clone(),
+                page: page_num + 1,
+                index: None,
+                image_type: ImageType::FullPage,
+                width: None,
+                height: None,
+                description: truncate_str(&description, 200).to_string(),
+                source_doc: doc_stem.clone(),
+                provider: provider.provider_name().to_string(),
+                model: provider.model_name().to_string(),
+            });
+
+            reporter.on_image_processed(
+                page_num + 1,
+                1,
+                truncate_str(&description, 80),
+            );
+
+            // LLM output IS the page content (no separate pdfium text to avoid duplication)
+            lines.push(format!("[IMAGE:{image_ref}]\n"));
+            lines.push(description);
+        }
     }
 
     Ok(PageResult {
@@ -616,10 +707,14 @@ pub async fn process_pdf(
     let total_pages = page_data_results.len() as u32;
     reporter.on_pdf_start(&doc_stem, total_pages);
 
+    let quality_label = match config.quality {
+        Quality::High => "high (vision-first)",
+        Quality::Standard => "standard",
+    };
     let mut all_content = vec![
         format!("# {doc_stem}\n"),
         format!(
-            "> Provider: `{}` | Model: `{}` | Pages: {total_pages}\n",
+            "> Provider: `{}` | Model: `{}` | Quality: `{quality_label}` | Pages: {total_pages}\n",
             provider.provider_name(),
             provider.model_name()
         ),

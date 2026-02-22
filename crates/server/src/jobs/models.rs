@@ -35,6 +35,8 @@ pub struct JobConfig {
     pub s3_prefix: Option<String>,
     #[serde(default)]
     pub storage_path: Option<String>,
+    #[serde(default = "default_quality")]
+    pub quality: String,
 }
 
 fn default_language() -> String {
@@ -43,6 +45,10 @@ fn default_language() -> String {
 
 fn default_storage() -> String {
     "local".to_string()
+}
+
+fn default_quality() -> String {
+    "standard".to_string()
 }
 
 /// Progress update for a job.

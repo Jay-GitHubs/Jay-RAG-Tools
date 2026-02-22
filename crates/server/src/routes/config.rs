@@ -7,6 +7,7 @@ pub struct ConfigResponse {
     pub providers: Vec<ProviderInfo>,
     pub languages: Vec<LanguageInfo>,
     pub storage_backends: Vec<&'static str>,
+    pub quality_levels: Vec<QualityInfo>,
 }
 
 #[derive(Serialize)]
@@ -22,6 +23,13 @@ pub struct ProviderInfo {
 pub struct LanguageInfo {
     pub code: &'static str,
     pub name: &'static str,
+}
+
+#[derive(Serialize)]
+pub struct QualityInfo {
+    pub value: &'static str,
+    pub label: &'static str,
+    pub description: &'static str,
 }
 
 /// Get available configuration options.
@@ -50,5 +58,17 @@ pub async fn get_config() -> Json<ConfigResponse> {
             },
         ],
         storage_backends: vec!["local", "s3", "nfs"],
+        quality_levels: vec![
+            QualityInfo {
+                value: "standard",
+                label: "Standard",
+                description: "pdfium text extraction + Vision LLM for images only. Fast and low cost.",
+            },
+            QualityInfo {
+                value: "high",
+                label: "High (Vision-First)",
+                description: "Every page rendered as 300 DPI image → Vision LLM OCR. Best Thai accuracy, handles scanned PDFs. 2-5x more tokens.",
+            },
+        ],
     })
 }

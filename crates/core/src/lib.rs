@@ -9,7 +9,7 @@ pub mod provider;
 pub mod table;
 pub mod trash;
 
-pub use config::ProcessingConfig;
+pub use config::{ProcessingConfig, Quality};
 pub use error::{CoreError, CoreResult};
 pub use metadata::ImageMetadata;
 pub use processor::{clean_markdown, process_pdf};

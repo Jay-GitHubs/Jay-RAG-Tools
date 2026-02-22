@@ -1,5 +1,42 @@
 use serde::{Deserialize, Serialize};
 
+/// Processing quality level.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Quality {
+    /// Standard: pdfium text + Vision LLM for images only (default).
+    Standard,
+    /// High: render every page as 300 DPI image → Vision LLM OCR.
+    High,
+}
+
+impl Default for Quality {
+    fn default() -> Self {
+        Self::Standard
+    }
+}
+
+impl std::fmt::Display for Quality {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Standard => write!(f, "standard"),
+            Self::High => write!(f, "high"),
+        }
+    }
+}
+
+impl std::str::FromStr for Quality {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "standard" => Ok(Self::Standard),
+            "high" => Ok(Self::High),
+            other => Err(format!("Unknown quality: {other}. Use: standard | high")),
+        }
+    }
+}
+
 /// Language for prompts and output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -76,6 +113,10 @@ pub struct ProcessingConfig {
     /// Enable trash detection (default: true).
     #[serde(default = "default_true")]
     pub detect_trash: bool,
+
+    /// Processing quality level (default: standard).
+    #[serde(default)]
+    pub quality: Quality,
 }
 
 fn default_concurrent_pages() -> usize {
@@ -104,6 +145,7 @@ impl Default for ProcessingConfig {
             max_concurrent_pages: default_concurrent_pages(),
             max_concurrent_images: default_concurrent_images(),
             detect_trash: true,
+            quality: Quality::default(),
         }
     }
 }

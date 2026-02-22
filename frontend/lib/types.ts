@@ -12,6 +12,7 @@ export interface JobConfig {
   s3_bucket?: string;
   s3_prefix?: string;
   storage_path?: string;
+  quality?: string;
 }
 
 export interface JobProgress {
@@ -54,10 +55,17 @@ export interface LanguageInfo {
   name: string;
 }
 
+export interface QualityInfo {
+  value: string;
+  label: string;
+  description: string;
+}
+
 export interface ConfigResponse {
   providers: ProviderInfo[];
   languages: LanguageInfo[];
   storage_backends: string[];
+  quality_levels: QualityInfo[];
 }
 
 export interface UploadResponse {

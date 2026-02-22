@@ -65,6 +65,7 @@ pub async fn upload_pdf(
             s3_bucket: None,
             s3_prefix: None,
             storage_path: None,
+            quality: "standard".to_string(),
         },
     };
 
@@ -94,6 +95,7 @@ pub async fn upload_pdf(
     let end_page = config.end_page;
     let table_extraction = config.table_extraction;
     let text_only = config.text_only;
+    let quality = config.quality.clone();
 
     tokio::spawn(async move {
         runner::run_job(
@@ -108,6 +110,7 @@ pub async fn upload_pdf(
             end_page,
             table_extraction,
             text_only,
+            quality,
         )
         .await;
     });
