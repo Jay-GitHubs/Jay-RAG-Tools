@@ -29,6 +29,16 @@ export function useDeleteJob() {
   });
 }
 
+export function useCancelJob() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.cancelJob(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["jobs"] });
+    },
+  });
+}
+
 export function useUpload() {
   const queryClient = useQueryClient();
   return useMutation({

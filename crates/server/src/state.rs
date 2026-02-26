@@ -1,6 +1,9 @@
 use crate::jobs::queue::JobQueue;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tokio::task::JoinHandle;
+use uuid::Uuid;
 
 /// Shared application state.
 #[derive(Clone)]
@@ -11,6 +14,8 @@ pub struct AppState {
     pub upload_dir: PathBuf,
     /// Default output directory for processed files.
     pub output_dir: PathBuf,
+    /// Handles for in-flight processing tasks, keyed by job ID.
+    pub task_handles: Arc<tokio::sync::Mutex<HashMap<Uuid, JoinHandle<()>>>>,
 }
 
 impl AppState {
@@ -22,6 +27,7 @@ impl AppState {
             job_queue,
             upload_dir,
             output_dir,
+            task_handles: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
         })
     }
 }

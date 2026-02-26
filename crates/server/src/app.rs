@@ -17,6 +17,7 @@ pub fn create_app(state: Arc<AppState>) -> Router {
         .route("/api/jobs", get(routes::jobs::list_jobs))
         .route("/api/jobs/{id}", get(routes::jobs::get_job))
         .route("/api/jobs/{id}", delete(routes::jobs::delete_job))
+        .route("/api/jobs/{id}/cancel", post(routes::jobs::cancel_job))
         .route("/api/results/{job_id}", get(routes::results::get_results))
         .route("/api/results/{job_id}/clean", post(routes::clean::clean_results))
         .route("/api/results/{job_id}/export", get(routes::export::export_zip))

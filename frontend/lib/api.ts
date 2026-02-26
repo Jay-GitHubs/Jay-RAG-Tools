@@ -95,6 +95,10 @@ export async function deleteJob(id: string): Promise<{ message: string }> {
   return fetchJson(`/api/jobs/${id}`, { method: "DELETE" });
 }
 
+export async function cancelJob(id: string): Promise<{ message: string }> {
+  return fetchJson(`/api/jobs/${id}/cancel`, { method: "POST" });
+}
+
 export async function getResults(jobId: string): Promise<ResultsResponse> {
   return fetchJson(`/api/results/${jobId}`);
 }

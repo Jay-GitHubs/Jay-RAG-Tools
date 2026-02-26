@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import JobList from "@/components/JobList";
-import { useJobs, useDeleteJob } from "@/hooks/useJobs";
+import { useJobs, useDeleteJob, useCancelJob } from "@/hooks/useJobs";
 import { formatDuration } from "@/lib/format";
 
 export default function Dashboard() {
   const { data: jobs, isLoading } = useJobs();
   const deleteJob = useDeleteJob();
+  const cancelJob = useCancelJob();
 
   const recentJobs = jobs?.slice(0, 5) || [];
   const completed = jobs?.filter((j) => j.status === "completed").length || 0;
@@ -92,6 +93,7 @@ export default function Dashboard() {
           <JobList
             jobs={recentJobs}
             onDelete={(id) => deleteJob.mutate(id)}
+            onCancel={(id) => cancelJob.mutate(id)}
           />
         )}
       </div>

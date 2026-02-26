@@ -44,7 +44,7 @@ async fn handle_socket(mut socket: WebSocket, job_id: Uuid, state: Arc<AppState>
                 if socket.send(Message::Text(msg.into())).await.is_err() {
                     break;
                 }
-                if progress.phase == "complete" || progress.phase == "error" {
+                if progress.phase == "complete" || progress.phase == "error" || progress.phase == "cancelled" {
                     break;
                 }
             }

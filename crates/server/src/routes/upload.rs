@@ -97,8 +97,9 @@ pub async fn upload_pdf(
     let table_extraction = config.table_extraction;
     let text_only = config.text_only;
     let quality = config.quality.clone();
+    let task_handles = state.task_handles.clone();
 
-    tokio::spawn(async move {
+    let handle = tokio::spawn(async move {
         runner::run_job(
             job_id,
             pdf_path,
@@ -114,7 +115,12 @@ pub async fn upload_pdf(
             quality,
         )
         .await;
+
+        // Self-cleanup: remove our handle entry on normal completion
+        task_handles.lock().await.remove(&job_id);
     });
+
+    state.task_handles.lock().await.insert(job_id, handle);
 
     Ok(Json(UploadResponse {
         job_id,

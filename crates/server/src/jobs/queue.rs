@@ -190,6 +190,17 @@ impl JobQueue {
         .ok();
     }
 
+    /// Set a job as cancelled.
+    pub async fn set_cancelled(&self, id: &Uuid) {
+        let now = iso_now();
+        let db = self.db.lock().expect("db lock poisoned");
+        db.execute(
+            "UPDATE jobs SET status = 'cancelled', completed_at = ?1, updated_at = ?1 WHERE id = ?2",
+            params![now, id.to_string()],
+        )
+        .ok();
+    }
+
     /// Update a job's result (e.g. after image deletion changes image_count).
     pub async fn update_result(&self, id: &Uuid, result: JobResult) {
         let result_json =
@@ -294,6 +305,7 @@ fn status_to_str(status: &JobStatus) -> &'static str {
         JobStatus::Processing => "processing",
         JobStatus::Completed => "completed",
         JobStatus::Failed => "failed",
+        JobStatus::Cancelled => "cancelled",
     }
 }
 
@@ -303,6 +315,7 @@ fn parse_status(s: &str) -> JobStatus {
         "processing" => JobStatus::Processing,
         "completed" => JobStatus::Completed,
         "failed" => JobStatus::Failed,
+        "cancelled" => JobStatus::Cancelled,
         _ => JobStatus::Failed,
     }
 }

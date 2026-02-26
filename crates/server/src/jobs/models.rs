@@ -10,6 +10,7 @@ pub enum JobStatus {
     Processing,
     Completed,
     Failed,
+    Cancelled,
 }
 
 /// Configuration for a processing job.

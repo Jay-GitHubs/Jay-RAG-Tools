@@ -1,11 +1,12 @@
 "use client";
 
 import JobList from "@/components/JobList";
-import { useJobs, useDeleteJob } from "@/hooks/useJobs";
+import { useJobs, useDeleteJob, useCancelJob } from "@/hooks/useJobs";
 
 export default function JobsPage() {
   const { data: jobs, isLoading } = useJobs();
   const deleteJob = useDeleteJob();
+  const cancelJob = useCancelJob();
 
   return (
     <div className="space-y-6">
@@ -24,6 +25,7 @@ export default function JobsPage() {
           <JobList
             jobs={jobs || []}
             onDelete={(id) => deleteJob.mutate(id)}
+            onCancel={(id) => cancelJob.mutate(id)}
           />
         )}
       </div>

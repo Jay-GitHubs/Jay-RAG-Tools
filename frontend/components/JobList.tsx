@@ -13,14 +13,16 @@ const statusColors: Record<JobStatus, string> = {
   processing: "bg-blue-100 text-blue-800 border border-blue-200",
   completed: "bg-emerald-100 text-emerald-800 border border-emerald-200",
   failed: "bg-red-100 text-red-800 border border-red-200",
+  cancelled: "bg-slate-100 text-slate-600 border border-slate-200",
 };
 
 interface JobListProps {
   jobs: Job[];
   onDelete?: (id: string) => void;
+  onCancel?: (id: string) => void;
 }
 
-export default function JobList({ jobs, onDelete }: JobListProps) {
+export default function JobList({ jobs, onDelete, onCancel }: JobListProps) {
   const [page, setPage] = useState(0);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
@@ -134,6 +136,14 @@ export default function JobList({ jobs, onDelete }: JobListProps) {
                       >
                         Progress
                       </Link>
+                    )}
+                    {onCancel && (job.status === "pending" || job.status === "processing") && (
+                      <button
+                        onClick={() => onCancel(job.id)}
+                        className="px-3 py-1.5 text-xs font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-md transition-colors"
+                      >
+                        Cancel
+                      </button>
                     )}
                     {onDelete && pendingDeleteId === job.id ? (
                       <div className="flex items-center gap-1.5">

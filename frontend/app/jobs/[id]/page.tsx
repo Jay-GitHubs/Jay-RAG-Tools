@@ -3,7 +3,7 @@
 import { use } from "react";
 import Link from "next/link";
 import JobProgressComponent from "@/components/JobProgress";
-import { useJob } from "@/hooks/useJobs";
+import { useJob, useCancelJob } from "@/hooks/useJobs";
 import { formatDateTime, formatDuration } from "@/lib/format";
 import ElapsedTimer from "@/components/ElapsedTimer";
 
@@ -14,6 +14,7 @@ export default function JobDetailPage({
 }) {
   const { id } = use(params);
   const { data: job, isLoading } = useJob(id);
+  const cancelJob = useCancelJob();
 
   if (isLoading) {
     return (
@@ -96,7 +97,16 @@ export default function JobDetailPage({
       {/* Progress */}
       {(job.status === "pending" || job.status === "processing") && (
         <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-          <h2 className="text-lg font-semibold text-slate-900 mb-3">Progress</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold text-slate-900">Progress</h2>
+            <button
+              onClick={() => cancelJob.mutate(id)}
+              disabled={cancelJob.isPending}
+              className="px-4 py-2 text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {cancelJob.isPending ? "Cancelling..." : "Cancel Job"}
+            </button>
+          </div>
           <JobProgressComponent jobId={id} />
         </div>
       )}
@@ -106,6 +116,14 @@ export default function JobDetailPage({
         <div className="bg-red-50 rounded-xl p-6 border border-red-200">
           <h2 className="text-lg font-semibold text-red-800 mb-2">Error</h2>
           <p className="text-red-700 text-sm font-mono">{job.error}</p>
+        </div>
+      )}
+
+      {/* Cancelled */}
+      {job.status === "cancelled" && (
+        <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
+          <h2 className="text-lg font-semibold text-slate-700 mb-2">Cancelled</h2>
+          <p className="text-slate-600 text-sm">This job was cancelled by the user.</p>
         </div>
       )}
 
