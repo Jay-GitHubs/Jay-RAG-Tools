@@ -4,5 +4,7 @@ pub mod deploy;
 pub mod export;
 pub mod health;
 pub mod jobs;
+pub mod markdown;
+pub mod pdf;
 pub mod results;
 pub mod upload;

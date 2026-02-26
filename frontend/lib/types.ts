@@ -136,3 +136,8 @@ export interface DeployResponse {
   markdown_result?: DeployStepResult;
   errors: string[];
 }
+
+export interface SaveMarkdownResponse {
+  success: boolean;
+  bytes_written: number;
+}

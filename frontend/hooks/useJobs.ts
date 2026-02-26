@@ -92,3 +92,19 @@ export function useCleanResults() {
     },
   });
 }
+
+export function useSaveMarkdown() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      jobId,
+      markdown,
+    }: {
+      jobId: string;
+      markdown: string;
+    }) => api.saveMarkdown(jobId, markdown),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["results", variables.jobId] });
+    },
+  });
+}

@@ -6,6 +6,7 @@ import type {
   DeployResponse,
   Job,
   ResultsResponse,
+  SaveMarkdownResponse,
   UploadResponse,
 } from "./types";
 
@@ -121,5 +122,20 @@ export async function cleanResults(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
+  });
+}
+
+export function getPdfUrl(jobId: string): string {
+  return `${API_BASE}/api/pdf/${jobId}`;
+}
+
+export async function saveMarkdown(
+  jobId: string,
+  markdown: string
+): Promise<SaveMarkdownResponse> {
+  return fetchJson(`/api/results/${jobId}/markdown`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ markdown }),
   });
 }
