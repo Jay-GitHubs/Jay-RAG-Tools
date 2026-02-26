@@ -335,6 +335,7 @@ fn default_config() -> JobConfig {
         s3_prefix: None,
         storage_path: None,
         quality: "standard".to_string(),
+        dpi: None,
         notify: true,
     }
 }

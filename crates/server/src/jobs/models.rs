@@ -39,6 +39,8 @@ pub struct JobConfig {
     pub storage_path: Option<String>,
     #[serde(default = "default_quality")]
     pub quality: String,
+    #[serde(default)]
+    pub dpi: Option<u32>,
     #[serde(default = "default_true")]
     pub notify: bool,
 }

@@ -66,6 +66,7 @@ pub async fn upload_pdf(
             s3_prefix: None,
             storage_path: None,
             quality: "standard".to_string(),
+            dpi: None,
             notify: true,
         },
     };
@@ -97,6 +98,7 @@ pub async fn upload_pdf(
     let table_extraction = config.table_extraction;
     let text_only = config.text_only;
     let quality = config.quality.clone();
+    let dpi = config.dpi;
     let task_handles = state.task_handles.clone();
 
     let handle = tokio::spawn(async move {
@@ -113,6 +115,7 @@ pub async fn upload_pdf(
             table_extraction,
             text_only,
             quality,
+            dpi,
         )
         .await;
 

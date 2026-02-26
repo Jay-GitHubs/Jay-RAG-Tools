@@ -8,6 +8,7 @@ pub struct ConfigResponse {
     pub languages: Vec<LanguageInfo>,
     pub storage_backends: Vec<&'static str>,
     pub quality_levels: Vec<QualityInfo>,
+    pub dpi_presets: Vec<u32>,
 }
 
 #[derive(Serialize)]
@@ -70,5 +71,6 @@ pub async fn get_config() -> Json<ConfigResponse> {
                 description: "Every page rendered as 300 DPI image → Vision LLM OCR. Best Thai accuracy, handles scanned PDFs. 2-5x more tokens.",
             },
         ],
+        dpi_presets: vec![150, 200, 300, 400, 600],
     })
 }

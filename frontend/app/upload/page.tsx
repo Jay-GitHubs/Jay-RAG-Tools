@@ -19,6 +19,7 @@ export default function UploadPage() {
     table_extraction: false,
     text_only: false,
     quality: "standard",
+    dpi: "",
     start_page: "",
     end_page: "",
     s3_bucket: "",
@@ -31,10 +32,11 @@ export default function UploadPage() {
     if (!file) return;
     try {
       setUploadProgress(0);
-      const { start_page, end_page, ...rest } = config;
+      const { start_page, end_page, dpi, ...rest } = config;
       const apiConfig: Record<string, unknown> = { ...rest };
       if (start_page) apiConfig.start_page = Number(start_page);
       if (end_page) apiConfig.end_page = Number(end_page);
+      if (dpi) apiConfig.dpi = Number(dpi);
       const result = await upload.mutateAsync({
         file,
         config: apiConfig,

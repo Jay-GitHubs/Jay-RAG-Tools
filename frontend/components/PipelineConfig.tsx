@@ -11,6 +11,7 @@ interface PipelineConfigProps {
     table_extraction: boolean;
     text_only: boolean;
     quality: string;
+    dpi: string;
     start_page: string;
     end_page: string;
     s3_bucket: string;
@@ -113,6 +114,43 @@ export default function PipelineConfig({
             </p>
           </div>
         )}
+      </div>
+
+      {/* DPI selector */}
+      <div className={`space-y-2${config.text_only ? " opacity-50 pointer-events-none" : ""}`}>
+        <label className={labelClasses}>Image DPI</label>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => onChange({ ...config, dpi: "" })}
+            className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+              config.dpi === ""
+                ? "bg-indigo-50 border-indigo-400 text-indigo-800"
+                : "bg-white border-slate-300 text-slate-600 hover:border-slate-400"
+            }`}
+          >
+            Default
+          </button>
+          {(serverConfig?.dpi_presets || []).map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => onChange({ ...config, dpi: String(d) })}
+              className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                config.dpi === String(d)
+                  ? "bg-indigo-50 border-indigo-400 text-indigo-800"
+                  : "bg-white border-slate-300 text-slate-600 hover:border-slate-400"
+              }`}
+            >
+              {d}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-slate-500">
+          {config.quality === "high"
+            ? "Default: 300 DPI (high mode floor). Values above 300 are used as-is."
+            : "Default: 150 DPI. Higher values improve small text / Thai diacritics accuracy."}
+        </p>
       </div>
 
       <div className={`grid grid-cols-2 gap-4${config.text_only ? " opacity-50 pointer-events-none" : ""}`}>

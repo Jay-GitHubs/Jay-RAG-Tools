@@ -115,6 +115,7 @@ pub async fn run_job(
     table_extraction: bool,
     text_only: bool,
     quality: String,
+    dpi: Option<u32>,
 ) {
     queue
         .update_status(&job_id, JobStatus::Processing)
@@ -128,6 +129,7 @@ pub async fn run_job(
         table_extraction: if text_only { false } else { table_extraction },
         text_only,
         quality,
+        image_dpi: dpi.unwrap_or(150),
         ..Default::default()
     };
 

@@ -13,6 +13,7 @@ export interface JobConfig {
   s3_prefix?: string;
   storage_path?: string;
   quality?: string;
+  dpi?: number;
   notify?: boolean;
 }
 
@@ -70,6 +71,7 @@ export interface ConfigResponse {
   languages: LanguageInfo[];
   storage_backends: string[];
   quality_levels: QualityInfo[];
+  dpi_presets: number[];
 }
 
 export interface UploadResponse {
