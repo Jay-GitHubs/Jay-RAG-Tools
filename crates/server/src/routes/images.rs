@@ -59,8 +59,8 @@ pub async fn delete_images(
 
     // 1. Delete image files from disk
     for image_file in &request.image_files {
-        // Prevent path traversal
-        if image_file.contains("..") || image_file.contains('/') || image_file.contains('\\') {
+        // Prevent path traversal (allow / for subdirectory structure like {job_id}/filename.png)
+        if image_file.contains("..") || image_file.contains('\\') {
             failed.push(image_file.clone());
             continue;
         }
