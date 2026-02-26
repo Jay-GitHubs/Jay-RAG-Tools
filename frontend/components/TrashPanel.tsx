@@ -21,11 +21,12 @@ const TYPE_COLORS: Record<TrashTypeName, string> = {
 interface TrashPanelProps {
   jobId: string;
   items: TrashDetection[];
-  onCleaned: (cleanedMarkdown: string) => void;
+  onCleaned: (cleanedMarkdown: string, removedPages: number[]) => void;
 }
 
 export default function TrashPanel({ jobId, items, onCleaned }: TrashPanelProps) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [cleanError, setCleanError] = useState<string | null>(null);
   const cleanMutation = useCleanResults();
 
   // Items that can be removed (have a page number > 0, not header/footer)
@@ -56,15 +57,22 @@ export default function TrashPanel({ jobId, items, onCleaned }: TrashPanelProps)
   const handleClean = async () => {
     const pages = Array.from(selected).sort((a, b) => a - b);
     if (pages.length === 0) return;
+    setCleanError(null);
 
     try {
       const result = await cleanMutation.mutateAsync({
         jobId,
         request: { remove_pages: pages },
       });
-      onCleaned(result.cleaned_markdown);
-    } catch {
-      // Error is handled by mutation state
+      if (!result?.cleaned_markdown) {
+        setCleanError("Server returned empty cleaned markdown");
+        return;
+      }
+      onCleaned(result.cleaned_markdown, pages);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setCleanError(msg);
+      console.error("Clean failed:", err);
     }
   };
 
@@ -113,9 +121,9 @@ export default function TrashPanel({ jobId, items, onCleaned }: TrashPanelProps)
         </div>
       )}
 
-      {cleanMutation.isError && (
+      {(cleanMutation.isError || cleanError) && (
         <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md">
-          Failed to clean: {cleanMutation.error?.message}
+          Failed to clean: {cleanError || cleanMutation.error?.message}
         </div>
       )}
 

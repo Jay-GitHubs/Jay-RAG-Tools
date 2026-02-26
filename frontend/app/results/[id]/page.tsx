@@ -22,6 +22,7 @@ export default function ResultsPage({
   const [showDeploy, setShowDeploy] = useState(false);
   const [cleanedMarkdown, setCleanedMarkdown] = useState<string | null>(null);
   const [showCleaned, setShowCleaned] = useState(false);
+  const [cleanedPages, setCleanedPages] = useState<Set<number>>(new Set());
 
   if (isLoading) {
     return (
@@ -47,7 +48,10 @@ export default function ResultsPage({
     type: string;
   }>) || [];
 
-  const trashCount = results.trash_count || 0;
+  const trashItems = (results.trash || []).filter(
+    (item) => !cleanedPages.has(item.page)
+  );
+  const trashCount = trashItems.length;
   const markdownToShow = showCleaned && cleanedMarkdown ? cleanedMarkdown : results.markdown;
 
   return (
@@ -246,10 +250,15 @@ export default function ResultsPage({
         ) : (
           <TrashPanel
             jobId={id}
-            items={results.trash || []}
-            onCleaned={(cleaned) => {
+            items={trashItems}
+            onCleaned={(cleaned, removedPages) => {
               setCleanedMarkdown(cleaned);
               setShowCleaned(true);
+              setCleanedPages((prev) => {
+                const next = new Set(prev);
+                removedPages.forEach((p) => next.add(p));
+                return next;
+              });
               setTab("markdown");
             }}
           />

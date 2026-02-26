@@ -38,7 +38,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (serverSettings) {
-      setSettings(serverSettings);
+      setSettings({ ...defaultSettings, ...serverSettings });
     }
   }, [serverSettings]);
 
