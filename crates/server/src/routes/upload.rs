@@ -66,6 +66,7 @@ pub async fn upload_pdf(
             s3_prefix: None,
             storage_path: None,
             quality: "standard".to_string(),
+            notify: true,
         },
     };
 

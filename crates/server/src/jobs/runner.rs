@@ -180,4 +180,10 @@ pub async fn run_job(
             queue.set_failed(&job_id, e.to_string()).await;
         }
     }
+
+    // Send notifications
+    if let Some(job) = queue.get_job(&job_id).await {
+        let settings = queue.get_notification_settings();
+        crate::notifications::notify_job_finished(&job, &settings).await;
+    }
 }

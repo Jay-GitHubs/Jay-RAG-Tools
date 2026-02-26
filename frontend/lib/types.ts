@@ -13,6 +13,7 @@ export interface JobConfig {
   s3_prefix?: string;
   storage_path?: string;
   quality?: string;
+  notify?: boolean;
 }
 
 export interface JobProgress {
@@ -40,6 +41,9 @@ export interface Job {
   error?: string;
   created_at: string;
   updated_at: string;
+  started_at?: string;
+  completed_at?: string;
+  duration_seconds?: number;
 }
 
 export interface ProviderInfo {
@@ -140,4 +144,25 @@ export interface DeployResponse {
 export interface SaveMarkdownResponse {
   success: boolean;
   bytes_written: number;
+}
+
+export interface NotificationSettings {
+  enabled: boolean;
+  line_enabled: boolean;
+  line_token: string;
+  email_enabled: boolean;
+  smtp_host: string;
+  smtp_port: number;
+  smtp_username: string;
+  smtp_password: string;
+  email_from: string;
+  email_to: string;
+  notify_on_complete: boolean;
+  notify_on_failure: boolean;
+}
+
+export interface TestNotificationResponse {
+  success: boolean;
+  error?: string;
+  results?: string[];
 }

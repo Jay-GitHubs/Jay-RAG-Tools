@@ -7,4 +7,5 @@ pub mod jobs;
 pub mod markdown;
 pub mod pdf;
 pub mod results;
+pub mod settings;
 pub mod upload;

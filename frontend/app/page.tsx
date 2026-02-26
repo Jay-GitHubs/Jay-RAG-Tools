@@ -3,6 +3,7 @@
 import Link from "next/link";
 import JobList from "@/components/JobList";
 import { useJobs, useDeleteJob } from "@/hooks/useJobs";
+import { formatDuration } from "@/lib/format";
 
 export default function Dashboard() {
   const { data: jobs, isLoading } = useJobs();
@@ -12,6 +13,12 @@ export default function Dashboard() {
   const completed = jobs?.filter((j) => j.status === "completed").length || 0;
   const processing = jobs?.filter((j) => j.status === "processing").length || 0;
   const failed = jobs?.filter((j) => j.status === "failed").length || 0;
+
+  const avgDuration = (() => {
+    const durations = jobs?.filter((j) => j.duration_seconds != null).map((j) => j.duration_seconds!) || [];
+    if (durations.length === 0) return null;
+    return durations.reduce((a, b) => a + b, 0) / durations.length;
+  })();
 
   return (
     <div className="space-y-8">
@@ -23,7 +30,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200 border-l-4 border-l-indigo-500">
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Jobs</p>
           <p className="text-3xl font-bold mt-2 text-slate-900">{jobs?.length || 0}</p>
@@ -39,6 +46,12 @@ export default function Dashboard() {
         <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200 border-l-4 border-l-red-500">
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Failed</p>
           <p className="text-3xl font-bold mt-2 text-red-600">{failed}</p>
+        </div>
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200 border-l-4 border-l-purple-500">
+          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Avg Duration</p>
+          <p className="text-3xl font-bold mt-2 text-purple-600">
+            {avgDuration != null ? formatDuration(avgDuration) : "-"}
+          </p>
         </div>
       </div>
 

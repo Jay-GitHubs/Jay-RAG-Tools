@@ -1,3 +1,4 @@
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -37,6 +38,12 @@ pub struct JobConfig {
     pub storage_path: Option<String>,
     #[serde(default = "default_quality")]
     pub quality: String,
+    #[serde(default = "default_true")]
+    pub notify: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 fn default_language() -> String {
@@ -86,6 +93,9 @@ pub struct Job {
     pub error: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+    pub started_at: Option<String>,
+    pub completed_at: Option<String>,
+    pub duration_seconds: Option<f64>,
 }
 
 impl Job {
@@ -101,11 +111,75 @@ impl Job {
             error: None,
             created_at: now.clone(),
             updated_at: now,
+            started_at: None,
+            completed_at: None,
+            duration_seconds: None,
         }
     }
+}
+
+/// Compute duration in seconds between two ISO timestamps.
+pub fn compute_duration_seconds(start: &str, end: &str) -> Option<f64> {
+    let fmt = "%Y-%m-%dT%H:%M:%SZ";
+    let s = NaiveDateTime::parse_from_str(start, fmt).ok()?;
+    let e = NaiveDateTime::parse_from_str(end, fmt).ok()?;
+    let dur = e.signed_duration_since(s);
+    Some(dur.num_milliseconds() as f64 / 1000.0)
 }
 
 /// ISO 8601 UTC timestamp, e.g. `2026-02-19T01:12:24Z`.
 pub fn iso_now() -> String {
     chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
+}
+
+/// Global notification settings (singleton).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotificationSettings {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub line_enabled: bool,
+    #[serde(default)]
+    pub line_token: String,
+    #[serde(default)]
+    pub email_enabled: bool,
+    #[serde(default)]
+    pub smtp_host: String,
+    #[serde(default = "default_smtp_port")]
+    pub smtp_port: u16,
+    #[serde(default)]
+    pub smtp_username: String,
+    #[serde(default)]
+    pub smtp_password: String,
+    #[serde(default)]
+    pub email_from: String,
+    #[serde(default)]
+    pub email_to: String,
+    #[serde(default = "default_true")]
+    pub notify_on_complete: bool,
+    #[serde(default = "default_true")]
+    pub notify_on_failure: bool,
+}
+
+fn default_smtp_port() -> u16 {
+    587
+}
+
+impl Default for NotificationSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            line_enabled: false,
+            line_token: String::new(),
+            email_enabled: false,
+            smtp_host: String::new(),
+            smtp_port: 587,
+            smtp_username: String::new(),
+            smtp_password: String::new(),
+            email_from: String::new(),
+            email_to: String::new(),
+            notify_on_complete: true,
+            notify_on_failure: true,
+        }
+    }
 }

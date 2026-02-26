@@ -59,6 +59,12 @@ export default function RootLayout({
                 >
                   Jobs
                 </Link>
+                <Link
+                  href="/settings"
+                  className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                >
+                  Settings
+                </Link>
               </div>
             </div>
           </nav>

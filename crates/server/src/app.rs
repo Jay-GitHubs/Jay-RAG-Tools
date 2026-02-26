@@ -1,5 +1,5 @@
 use axum::extract::DefaultBodyLimit;
-use axum::routing::{delete, get, post};
+use axum::routing::{delete, get, post, put};
 use axum::Router;
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
@@ -23,7 +23,10 @@ pub fn create_app(state: Arc<AppState>) -> Router {
         .route("/api/results/{job_id}/deploy", post(routes::deploy::deploy_handler))
         .route("/api/results/{job_id}/markdown", post(routes::markdown::save_markdown))
         .route("/api/pdf/{job_id}", get(routes::pdf::serve_pdf))
-        .route("/api/config", get(routes::config::get_config));
+        .route("/api/config", get(routes::config::get_config))
+        .route("/api/settings/notifications", get(routes::settings::get_notification_settings))
+        .route("/api/settings/notifications", put(routes::settings::update_notification_settings))
+        .route("/api/settings/notifications/test", post(routes::settings::test_notification));
 
     let ws_route = Router::new()
         .route("/ws/{job_id}", get(ws::ws_handler));

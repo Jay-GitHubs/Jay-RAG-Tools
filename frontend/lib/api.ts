@@ -5,8 +5,10 @@ import type {
   DeployRequest,
   DeployResponse,
   Job,
+  NotificationSettings,
   ResultsResponse,
   SaveMarkdownResponse,
+  TestNotificationResponse,
   UploadResponse,
 } from "./types";
 
@@ -138,4 +140,22 @@ export async function saveMarkdown(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ markdown }),
   });
+}
+
+export async function getNotificationSettings(): Promise<NotificationSettings> {
+  return fetchJson("/api/settings/notifications");
+}
+
+export async function updateNotificationSettings(
+  settings: NotificationSettings
+): Promise<NotificationSettings> {
+  return fetchJson("/api/settings/notifications", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+}
+
+export async function testNotification(): Promise<TestNotificationResponse> {
+  return fetchJson("/api/settings/notifications/test", { method: "POST" });
 }

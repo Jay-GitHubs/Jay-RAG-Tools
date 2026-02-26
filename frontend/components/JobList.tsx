@@ -3,7 +3,8 @@
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import type { Job, JobStatus } from "@/lib/types";
-import { timeAgo, formatDateTime } from "@/lib/format";
+import { timeAgo, formatDateTime, formatDuration } from "@/lib/format";
+import ElapsedTimer from "@/components/ElapsedTimer";
 
 const PAGE_SIZE = 10;
 
@@ -61,6 +62,7 @@ export default function JobList({ jobs, onDelete }: JobListProps) {
               <th className="pb-3 pr-4">Provider</th>
               <th className="pb-3 pr-4">Images</th>
               <th className="pb-3 pr-4">Created</th>
+              <th className="pb-3 pr-4">Duration</th>
               <th className="pb-3">Actions</th>
             </tr>
           </thead>
@@ -105,6 +107,15 @@ export default function JobList({ jobs, onDelete }: JobListProps) {
                   title={formatDateTime(job.created_at)}
                 >
                   {timeAgo(job.created_at)}
+                </td>
+                <td className="py-3.5 pr-4 text-sm">
+                  {job.status === "processing" && job.started_at ? (
+                    <ElapsedTimer startedAt={job.started_at} />
+                  ) : job.duration_seconds != null ? (
+                    <span className="text-slate-700 tabular-nums">{formatDuration(job.duration_seconds)}</span>
+                  ) : (
+                    <span className="text-slate-400">-</span>
+                  )}
                 </td>
                 <td className="py-3.5">
                   <div className="flex gap-1.5">

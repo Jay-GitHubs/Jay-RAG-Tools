@@ -4,7 +4,8 @@ import { use } from "react";
 import Link from "next/link";
 import JobProgressComponent from "@/components/JobProgress";
 import { useJob } from "@/hooks/useJobs";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatDuration } from "@/lib/format";
+import ElapsedTimer from "@/components/ElapsedTimer";
 
 export default function JobDetailPage({
   params,
@@ -66,8 +67,28 @@ export default function JobDetailPage({
             <span className="font-medium text-slate-900">{formatDateTime(job.created_at)}</span>
           </div>
           <div>
-            <span className="text-slate-500">Updated:</span>{" "}
-            <span className="font-medium text-slate-900">{formatDateTime(job.updated_at)}</span>
+            <span className="text-slate-500">Started:</span>{" "}
+            <span className="font-medium text-slate-900">
+              {job.started_at ? formatDateTime(job.started_at) : "-"}
+            </span>
+          </div>
+          <div>
+            <span className="text-slate-500">Finished:</span>{" "}
+            <span className="font-medium text-slate-900">
+              {job.completed_at ? formatDateTime(job.completed_at) : "-"}
+            </span>
+          </div>
+          <div>
+            <span className="text-slate-500">Duration:</span>{" "}
+            <span className="font-medium text-slate-900">
+              {job.status === "processing" && job.started_at ? (
+                <ElapsedTimer startedAt={job.started_at} />
+              ) : job.duration_seconds != null ? (
+                formatDuration(job.duration_seconds)
+              ) : (
+                "-"
+              )}
+            </span>
           </div>
         </div>
       </div>

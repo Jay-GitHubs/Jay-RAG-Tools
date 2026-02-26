@@ -1,4 +1,7 @@
-use super::models::{iso_now, Job, JobConfig, JobProgress, JobResult, JobStatus};
+use super::models::{
+    compute_duration_seconds, iso_now, Job, JobConfig, JobProgress, JobResult, JobStatus,
+    NotificationSettings,
+};
 use rusqlite::{params, Connection};
 use std::collections::HashMap;
 use std::path::Path;
@@ -34,6 +37,20 @@ impl JobQueue {
                 error      TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
+            );",
+        )?;
+
+        // Migrations: add timing columns (idempotent)
+        conn.execute("ALTER TABLE jobs ADD COLUMN started_at TEXT", [])
+            .ok();
+        conn.execute("ALTER TABLE jobs ADD COLUMN completed_at TEXT", [])
+            .ok();
+
+        // Notification settings singleton table
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS notification_settings (
+                id          INTEGER PRIMARY KEY CHECK (id = 1),
+                settings    TEXT NOT NULL
             );",
         )?;
 
@@ -86,7 +103,7 @@ impl JobQueue {
         let id_str = id.to_string();
         let db = self.db.lock().expect("db lock poisoned");
         db.query_row(
-            "SELECT id, filename, status, config, progress, result, error, created_at, updated_at
+            "SELECT id, filename, status, config, progress, result, error, created_at, updated_at, started_at, completed_at
              FROM jobs WHERE id = ?1",
             params![id_str],
             |row| row_to_job(row),
@@ -99,7 +116,7 @@ impl JobQueue {
         let db = self.db.lock().expect("db lock poisoned");
         let mut stmt = db
             .prepare(
-                "SELECT id, filename, status, config, progress, result, error, created_at, updated_at
+                "SELECT id, filename, status, config, progress, result, error, created_at, updated_at, started_at, completed_at
                  FROM jobs ORDER BY created_at DESC",
             )
             .expect("Failed to prepare list_jobs query");
@@ -112,12 +129,21 @@ impl JobQueue {
 
     /// Update a job's status.
     pub async fn update_status(&self, id: &Uuid, status: JobStatus) {
+        let now = iso_now();
         let db = self.db.lock().expect("db lock poisoned");
-        db.execute(
-            "UPDATE jobs SET status = ?1, updated_at = ?2 WHERE id = ?3",
-            params![status_to_str(&status), iso_now(), id.to_string()],
-        )
-        .ok();
+        if status == JobStatus::Processing {
+            db.execute(
+                "UPDATE jobs SET status = ?1, started_at = ?2, updated_at = ?2 WHERE id = ?3",
+                params![status_to_str(&status), now, id.to_string()],
+            )
+            .ok();
+        } else {
+            db.execute(
+                "UPDATE jobs SET status = ?1, updated_at = ?2 WHERE id = ?3",
+                params![status_to_str(&status), now, id.to_string()],
+            )
+            .ok();
+        }
     }
 
     /// Update a job's progress and broadcast to listeners.
@@ -143,21 +169,23 @@ impl JobQueue {
     pub async fn set_completed(&self, id: &Uuid, result: JobResult) {
         let result_json =
             serde_json::to_string(&result).expect("JobResult serialization failed");
+        let now = iso_now();
 
         let db = self.db.lock().expect("db lock poisoned");
         db.execute(
-            "UPDATE jobs SET status = 'completed', result = ?1, updated_at = ?2 WHERE id = ?3",
-            params![result_json, iso_now(), id.to_string()],
+            "UPDATE jobs SET status = 'completed', result = ?1, completed_at = ?2, updated_at = ?2 WHERE id = ?3",
+            params![result_json, now, id.to_string()],
         )
         .ok();
     }
 
     /// Set a job as failed with an error message.
     pub async fn set_failed(&self, id: &Uuid, error: String) {
+        let now = iso_now();
         let db = self.db.lock().expect("db lock poisoned");
         db.execute(
-            "UPDATE jobs SET status = 'failed', error = ?1, updated_at = ?2 WHERE id = ?3",
-            params![error, iso_now(), id.to_string()],
+            "UPDATE jobs SET status = 'failed', error = ?1, completed_at = ?2, updated_at = ?2 WHERE id = ?3",
+            params![error, now, id.to_string()],
         )
         .ok();
     }
@@ -185,6 +213,32 @@ impl JobQueue {
             .get(id)
             .map(|tx| tx.subscribe())
     }
+
+    /// Get global notification settings.
+    pub fn get_notification_settings(&self) -> NotificationSettings {
+        let db = self.db.lock().expect("db lock poisoned");
+        db.query_row(
+            "SELECT settings FROM notification_settings WHERE id = 1",
+            [],
+            |row| {
+                let json: String = row.get(0)?;
+                Ok(serde_json::from_str(&json).unwrap_or_default())
+            },
+        )
+        .unwrap_or_default()
+    }
+
+    /// Update global notification settings.
+    pub fn update_notification_settings(&self, settings: &NotificationSettings) {
+        let json = serde_json::to_string(settings).expect("NotificationSettings serialization failed");
+        let db = self.db.lock().expect("db lock poisoned");
+        db.execute(
+            "INSERT INTO notification_settings (id, settings) VALUES (1, ?1)
+             ON CONFLICT(id) DO UPDATE SET settings = ?1",
+            params![json],
+        )
+        .ok();
+    }
 }
 
 /// Convert a rusqlite Row into a Job.
@@ -198,6 +252,13 @@ fn row_to_job(row: &rusqlite::Row) -> rusqlite::Result<Job> {
     let error: Option<String> = row.get(6)?;
     let created_at: String = row.get(7)?;
     let updated_at: String = row.get(8)?;
+    let started_at: Option<String> = row.get(9)?;
+    let completed_at: Option<String> = row.get(10)?;
+
+    let duration_seconds = match (&started_at, &completed_at) {
+        (Some(s), Some(e)) => compute_duration_seconds(s, e),
+        _ => None,
+    };
 
     Ok(Job {
         id: Uuid::parse_str(&id_str).unwrap_or_else(|_| Uuid::nil()),
@@ -209,6 +270,9 @@ fn row_to_job(row: &rusqlite::Row) -> rusqlite::Result<Job> {
         error,
         created_at,
         updated_at,
+        started_at,
+        completed_at,
+        duration_seconds,
     })
 }
 
@@ -246,5 +310,6 @@ fn default_config() -> JobConfig {
         s3_prefix: None,
         storage_path: None,
         quality: "standard".to_string(),
+        notify: true,
     }
 }

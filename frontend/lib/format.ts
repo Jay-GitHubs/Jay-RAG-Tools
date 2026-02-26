@@ -28,3 +28,22 @@ export function formatDateTime(iso: string): string {
   if (isNaN(date.getTime())) return iso;
   return date.toLocaleString();
 }
+
+/** Format a duration in seconds as a human-readable string, e.g. "2m 34s", "1h 5m". */
+export function formatDuration(seconds: number): string {
+  if (seconds < 1) return "< 1s";
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.round(seconds % 60);
+  if (mins < 60) return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  const remainMins = mins % 60;
+  return remainMins > 0 ? `${hours}h ${remainMins}m` : `${hours}h`;
+}
+
+/** Compute elapsed seconds from an ISO timestamp to now. */
+export function elapsedSince(iso: string): number {
+  const date = new Date(iso);
+  if (isNaN(date.getTime())) return 0;
+  return Math.max(0, (Date.now() - date.getTime()) / 1000);
+}

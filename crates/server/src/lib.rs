@@ -2,6 +2,7 @@ pub mod app;
 pub mod deploy;
 pub mod error;
 pub mod jobs;
+pub mod notifications;
 pub mod routes;
 pub mod state;
 pub mod ws;

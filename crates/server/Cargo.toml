@@ -42,6 +42,9 @@ zip = "2"
 # HTTP client (Flowise API)
 reqwest = { version = "0.12", features = ["json"] }
 
+# Email
+lettre = { version = "0.11", features = ["tokio1-native-tls"] }
+
 # Internal
 jay-rag-core = { workspace = true }
 jay-rag-storage = { workspace = true }
