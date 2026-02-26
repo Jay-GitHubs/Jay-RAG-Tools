@@ -146,6 +146,17 @@ export interface SaveMarkdownResponse {
   bytes_written: number;
 }
 
+export interface DeleteImagesRequest {
+  image_files: string[];
+}
+
+export interface DeleteImagesResponse {
+  deleted: string[];
+  failed: string[];
+  updated_markdown?: string;
+  image_count: number;
+}
+
 export interface NotificationSettings {
   enabled: boolean;
   line_enabled: boolean;

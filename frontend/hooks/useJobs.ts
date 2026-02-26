@@ -104,3 +104,20 @@ export function useSaveMarkdown() {
     },
   });
 }
+
+export function useDeleteImages() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      jobId,
+      request,
+    }: {
+      jobId: string;
+      request: import("@/lib/types").DeleteImagesRequest;
+    }) => api.deleteImages(jobId, request),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["results", variables.jobId] });
+      queryClient.invalidateQueries({ queryKey: ["jobs"] });
+    },
+  });
+}

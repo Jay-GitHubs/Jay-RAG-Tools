@@ -2,6 +2,8 @@ import type {
   CleanRequest,
   CleanResponse,
   ConfigResponse,
+  DeleteImagesRequest,
+  DeleteImagesResponse,
   DeployRequest,
   DeployResponse,
   Job,
@@ -158,4 +160,15 @@ export async function updateNotificationSettings(
 
 export async function testNotification(): Promise<TestNotificationResponse> {
   return fetchJson("/api/settings/notifications/test", { method: "POST" });
+}
+
+export async function deleteImages(
+  jobId: string,
+  request: DeleteImagesRequest
+): Promise<DeleteImagesResponse> {
+  return fetchJson(`/api/results/${jobId}/images/delete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
 }

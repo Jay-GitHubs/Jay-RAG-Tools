@@ -3,6 +3,7 @@ pub mod config;
 pub mod deploy;
 pub mod export;
 pub mod health;
+pub mod images;
 pub mod jobs;
 pub mod markdown;
 pub mod pdf;

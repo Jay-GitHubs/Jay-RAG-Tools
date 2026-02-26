@@ -190,6 +190,18 @@ impl JobQueue {
         .ok();
     }
 
+    /// Update a job's result (e.g. after image deletion changes image_count).
+    pub async fn update_result(&self, id: &Uuid, result: JobResult) {
+        let result_json =
+            serde_json::to_string(&result).expect("JobResult serialization failed");
+        let db = self.db.lock().expect("db lock poisoned");
+        db.execute(
+            "UPDATE jobs SET result = ?1, updated_at = ?2 WHERE id = ?3",
+            params![result_json, iso_now(), id.to_string()],
+        )
+        .ok();
+    }
+
     /// Delete a job.
     pub async fn delete_job(&self, id: &Uuid) -> bool {
         let removed = {

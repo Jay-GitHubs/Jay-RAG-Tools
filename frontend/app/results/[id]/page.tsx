@@ -246,7 +246,16 @@ export default function ResultsPage({
             <p className="text-slate-400">No markdown content available.</p>
           )
         ) : tab === "images" ? (
-          <ImageGallery images={images} />
+          <ImageGallery
+            images={images}
+            jobId={id}
+            onDeleted={(updatedMarkdown) => {
+              if (updatedMarkdown) {
+                setCleanedMarkdown(updatedMarkdown);
+                setShowCleaned(true);
+              }
+            }}
+          />
         ) : (
           <TrashPanel
             jobId={id}
