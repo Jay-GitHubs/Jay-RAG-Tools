@@ -139,8 +139,12 @@ pub struct NotificationSettings {
     pub enabled: bool,
     #[serde(default)]
     pub line_enabled: bool,
+    /// LINE Messaging API channel access token.
+    #[serde(default, alias = "line_token")]
+    pub line_channel_token: String,
+    /// LINE user ID or group ID to push messages to.
     #[serde(default)]
-    pub line_token: String,
+    pub line_user_id: String,
     #[serde(default)]
     pub email_enabled: bool,
     #[serde(default)]
@@ -170,7 +174,8 @@ impl Default for NotificationSettings {
         Self {
             enabled: false,
             line_enabled: false,
-            line_token: String::new(),
+            line_channel_token: String::new(),
+            line_user_id: String::new(),
             email_enabled: false,
             smtp_host: String::new(),
             smtp_port: 587,

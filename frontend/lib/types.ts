@@ -149,7 +149,8 @@ export interface SaveMarkdownResponse {
 export interface NotificationSettings {
   enabled: boolean;
   line_enabled: boolean;
-  line_token: string;
+  line_channel_token: string;
+  line_user_id: string;
   email_enabled: boolean;
   smtp_host: string;
   smtp_port: number;

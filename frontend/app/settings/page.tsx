@@ -15,7 +15,8 @@ const labelClasses = "block text-sm font-medium text-slate-700 mb-1.5";
 const defaultSettings: NotificationSettings = {
   enabled: false,
   line_enabled: false,
-  line_token: "",
+  line_channel_token: "",
+  line_user_id: "",
   email_enabled: false,
   smtp_host: "",
   smtp_port: 587,
@@ -101,10 +102,10 @@ export default function SettingsPage() {
       </div>
 
       <div className={settings.enabled ? "" : "opacity-50 pointer-events-none"}>
-        {/* LINE Notify */}
+        {/* LINE Messaging API */}
         <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-slate-900">LINE Notify</h2>
+            <h2 className="text-lg font-semibold text-slate-900">LINE Messaging API</h2>
             <label className="flex items-center gap-2 cursor-pointer">
               <div className="relative">
                 <input
@@ -118,16 +119,31 @@ export default function SettingsPage() {
               </div>
             </label>
           </div>
-          <div className={settings.line_enabled ? "" : "opacity-50 pointer-events-none"}>
-            <label className={labelClasses}>LINE Notify Token</label>
-            <input
-              type="password"
-              className={inputClasses}
-              value={settings.line_token}
-              onChange={(e) => update({ line_token: e.target.value })}
-              placeholder="Enter your LINE Notify token"
-            />
-            <div className="flex items-center gap-2 mt-1.5">
+          <div className={settings.line_enabled ? "space-y-4" : "space-y-4 opacity-50 pointer-events-none"}>
+            <div>
+              <label className={labelClasses}>Channel Access Token</label>
+              <input
+                type="password"
+                className={inputClasses}
+                value={settings.line_channel_token}
+                onChange={(e) => update({ line_channel_token: e.target.value })}
+                placeholder="Enter your channel access token"
+              />
+            </div>
+            <div>
+              <label className={labelClasses}>User ID or Group ID</label>
+              <input
+                type="text"
+                className={inputClasses}
+                value={settings.line_user_id}
+                onChange={(e) => update({ line_user_id: e.target.value })}
+                placeholder="U1234abcd... or C1234abcd..."
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                User ID starts with <code className="bg-slate-100 px-1 rounded font-mono">U</code>, Group ID with <code className="bg-slate-100 px-1 rounded font-mono">C</code>
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setShowLineGuide(true)}
@@ -136,7 +152,7 @@ export default function SettingsPage() {
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
                 </svg>
-                How to get a LINE Notify token?
+                How to set up LINE Messaging API?
               </button>
             </div>
           </div>
@@ -308,7 +324,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* LINE Notify Guide Modal */}
+      {/* LINE Messaging API Guide Modal */}
       {showLineGuide && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
@@ -318,7 +334,7 @@ export default function SettingsPage() {
           <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-y-auto">
             <div className="sticky top-0 bg-white rounded-t-2xl border-b border-slate-200 px-6 py-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-slate-900">
-                How to Get a LINE Notify Token
+                How to Set Up LINE Messaging API
               </h3>
               <button
                 onClick={() => setShowLineGuide(false)}
@@ -336,18 +352,18 @@ export default function SettingsPage() {
                   1
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-900">Go to LINE Notify website</p>
+                  <p className="text-sm font-medium text-slate-900">Create a LINE Official Account</p>
                   <p className="text-sm text-slate-600 mt-0.5">
-                    Open{" "}
+                    Go to{" "}
                     <a
-                      href="https://notify-bot.line.me/"
+                      href="https://developers.line.biz/console/"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-indigo-600 hover:underline font-medium"
                     >
-                      notify-bot.line.me
+                      LINE Developers Console
                     </a>{" "}
-                    and log in with your LINE account.
+                    and log in. Create a new <span className="font-medium text-slate-800">Provider</span> if you don&apos;t have one.
                   </p>
                 </div>
               </div>
@@ -358,10 +374,10 @@ export default function SettingsPage() {
                   2
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-900">Go to My Page</p>
+                  <p className="text-sm font-medium text-slate-900">Create a Messaging API Channel</p>
                   <p className="text-sm text-slate-600 mt-0.5">
-                    Click your name in the top-right corner, then select{" "}
-                    <span className="font-medium text-slate-800">&quot;My page&quot;</span>.
+                    Inside your Provider, click <span className="font-medium text-slate-800">&quot;Create a new channel&quot;</span> and
+                    select <span className="font-medium text-slate-800">&quot;Messaging API&quot;</span>. Fill in the required fields (name, description, category).
                   </p>
                 </div>
               </div>
@@ -372,12 +388,11 @@ export default function SettingsPage() {
                   3
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-900">Generate a token</p>
+                  <p className="text-sm font-medium text-slate-900">Get the Channel Access Token</p>
                   <p className="text-sm text-slate-600 mt-0.5">
-                    Scroll down to{" "}
-                    <span className="font-medium text-slate-800">&quot;Generate access token (For developers)&quot;</span>{" "}
-                    and click{" "}
-                    <span className="font-medium text-slate-800">&quot;Generate token&quot;</span>.
+                    Go to your channel&apos;s <span className="font-medium text-slate-800">&quot;Messaging API&quot;</span> tab.
+                    Scroll down to <span className="font-medium text-slate-800">&quot;Channel access token (long-lived)&quot;</span> and
+                    click <span className="font-medium text-slate-800">&quot;Issue&quot;</span>. Copy the token.
                   </p>
                 </div>
               </div>
@@ -388,22 +403,11 @@ export default function SettingsPage() {
                   4
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-900">Set token name and target</p>
+                  <p className="text-sm font-medium text-slate-900">Add the bot as a friend</p>
                   <p className="text-sm text-slate-600 mt-0.5">
-                    Enter a token name (e.g.{" "}
-                    <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded font-mono">JAY-RAG Alerts</code>
-                    ) and select a chat room to receive notifications:
+                    On the same <span className="font-medium text-slate-800">&quot;Messaging API&quot;</span> tab, scan the <span className="font-medium text-slate-800">QR code</span> with
+                    your LINE app to add the bot as a friend. This is required to receive messages.
                   </p>
-                  <ul className="mt-1.5 space-y-1">
-                    <li className="text-sm text-slate-600 flex items-start gap-1.5">
-                      <span className="text-indigo-500 mt-0.5">&#8226;</span>
-                      <span><span className="font-medium text-slate-800">&quot;1-on-1 chat with LINE Notify&quot;</span> &mdash; sends to your personal chat (recommended)</span>
-                    </li>
-                    <li className="text-sm text-slate-600 flex items-start gap-1.5">
-                      <span className="text-indigo-500 mt-0.5">&#8226;</span>
-                      <span>Or select a <span className="font-medium text-slate-800">group chat</span> to notify your team</span>
-                    </li>
-                  </ul>
                 </div>
               </div>
 
@@ -413,23 +417,25 @@ export default function SettingsPage() {
                   5
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-900">Copy the token</p>
+                  <p className="text-sm font-medium text-slate-900">Get your User ID</p>
                   <p className="text-sm text-slate-600 mt-0.5">
-                    Click <span className="font-medium text-slate-800">&quot;Generate token&quot;</span>.
-                    The token will be shown <span className="font-medium text-red-600">only once</span> &mdash; copy it immediately and paste it into the field above.
+                    Go to the <span className="font-medium text-slate-800">&quot;Basic settings&quot;</span> tab of your channel.
+                    Your <span className="font-medium text-slate-800">User ID</span> is shown at the bottom (starts with{" "}
+                    <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded font-mono">U</code>).
+                    Paste it into the &quot;User ID or Group ID&quot; field.
                   </p>
                 </div>
               </div>
 
-              {/* Important note */}
-              <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <svg className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              {/* Free tier note */}
+              <div className="flex items-start gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                <svg className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
                 <div>
-                  <p className="text-xs font-medium text-amber-800">Important</p>
-                  <p className="text-xs text-amber-700 mt-0.5">
-                    The token is displayed only once after generation. If you lose it, you&apos;ll need to revoke the old token and generate a new one.
+                  <p className="text-xs font-medium text-emerald-800">Free tier available</p>
+                  <p className="text-xs text-emerald-700 mt-0.5">
+                    The Messaging API free plan includes 200 push messages per month &mdash; more than enough for job notifications.
                   </p>
                 </div>
               </div>
@@ -442,8 +448,9 @@ export default function SettingsPage() {
                 <div>
                   <p className="text-xs font-medium text-blue-800">Sending to a group?</p>
                   <p className="text-xs text-blue-700 mt-0.5">
-                    If you selected a group chat, you must also invite the{" "}
-                    <span className="font-medium">&quot;LINE Notify&quot;</span> bot into that group for messages to be delivered.
+                    Invite the bot to a group chat, then use the Group ID (starts with{" "}
+                    <code className="text-xs bg-blue-100 px-1 rounded font-mono">C</code>) instead of User ID.
+                    You can get the Group ID from webhook events when the bot joins the group.
                   </p>
                 </div>
               </div>

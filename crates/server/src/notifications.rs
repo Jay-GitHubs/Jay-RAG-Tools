@@ -18,9 +18,9 @@ pub async fn notify_job_finished(job: &Job, settings: &NotificationSettings) {
 
     let message = build_message(job);
 
-    if settings.line_enabled && !settings.line_token.is_empty() {
-        if let Err(e) = send_line_notify(&settings.line_token, &message).await {
-            tracing::warn!("LINE Notify failed: {e}");
+    if settings.line_enabled && !settings.line_channel_token.is_empty() && !settings.line_user_id.is_empty() {
+        if let Err(e) = send_line_message(&settings.line_channel_token, &settings.line_user_id, &message).await {
+            tracing::warn!("LINE Messaging API failed: {e}");
         }
     }
 
@@ -66,21 +66,33 @@ fn build_message(job: &Job) -> String {
     msg
 }
 
-/// Send a LINE Notify message.
-async fn send_line_notify(token: &str, message: &str) -> Result<(), String> {
+/// Send a push message via LINE Messaging API.
+async fn send_line_message(channel_token: &str, user_id: &str, message: &str) -> Result<(), String> {
     let client = reqwest::Client::new();
+    let body = serde_json::json!({
+        "to": user_id,
+        "messages": [
+            {
+                "type": "text",
+                "text": message
+            }
+        ]
+    });
     let resp = client
-        .post("https://notify-api.line.me/api/notify")
-        .header("Authorization", format!("Bearer {token}"))
-        .form(&[("message", message)])
+        .post("https://api.line.me/v2/bot/message/push")
+        .header("Authorization", format!("Bearer {channel_token}"))
+        .header("Content-Type", "application/json")
+        .json(&body)
         .send()
         .await
         .map_err(|e| e.to_string())?;
 
     if !resp.status().is_success() {
-        return Err(format!("LINE Notify returned {}", resp.status()));
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!("LINE Messaging API returned {status}: {body}"));
     }
-    tracing::info!("LINE Notify sent successfully");
+    tracing::info!("LINE message sent to {user_id}");
     Ok(())
 }
 

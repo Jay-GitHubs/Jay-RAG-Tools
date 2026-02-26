@@ -36,17 +36,28 @@ pub async fn test_notification(
 
     let mut results = Vec::new();
 
-    if settings.line_enabled && !settings.line_token.is_empty() {
+    if settings.line_enabled && !settings.line_channel_token.is_empty() && !settings.line_user_id.is_empty() {
         let client = reqwest::Client::new();
+        let body = serde_json::json!({
+            "to": settings.line_user_id,
+            "messages": [{
+                "type": "text",
+                "text": "[JAY-RAG] Test notification - settings are working!"
+            }]
+        });
         let resp = client
-            .post("https://notify-api.line.me/api/notify")
-            .header("Authorization", format!("Bearer {}", settings.line_token))
-            .form(&[("message", "[JAY-RAG] Test notification - settings are working!")])
+            .post("https://api.line.me/v2/bot/message/push")
+            .header("Authorization", format!("Bearer {}", settings.line_channel_token))
+            .json(&body)
             .send()
             .await;
         match resp {
             Ok(r) if r.status().is_success() => results.push("LINE: OK".to_string()),
-            Ok(r) => results.push(format!("LINE: Failed ({})", r.status())),
+            Ok(r) => {
+                let status = r.status();
+                let body = r.text().await.unwrap_or_default();
+                results.push(format!("LINE: Failed ({status}) {body}"));
+            }
             Err(e) => results.push(format!("LINE: Error ({e})")),
         }
     }
