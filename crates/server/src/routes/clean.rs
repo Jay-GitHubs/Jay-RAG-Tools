@@ -56,6 +56,27 @@ pub async fn clean_results(
     let (_cleaned_path, cleaned_content) =
         jay_rag_core::clean_markdown(&markdown_path, &request.remove_pages).await?;
 
+    // Update trash JSON file to remove cleaned pages
+    if let Some(ref trash_path) = result.trash_path {
+        if let Ok(trash_json) = tokio::fs::read_to_string(trash_path).await {
+            if let Ok(mut trash_items) =
+                serde_json::from_str::<Vec<serde_json::Value>>(&trash_json)
+            {
+                let remove_set: std::collections::HashSet<u32> =
+                    request.remove_pages.iter().copied().collect();
+                trash_items.retain(|item| {
+                    item.get("page")
+                        .and_then(|p| p.as_u64())
+                        .map(|p| !remove_set.contains(&(p as u32)))
+                        .unwrap_or(true)
+                });
+                if let Ok(updated_json) = serde_json::to_string_pretty(&trash_items) {
+                    let _ = tokio::fs::write(trash_path, updated_json).await;
+                }
+            }
+        }
+    }
+
     Ok(Json(CleanResponse {
         cleaned_markdown: cleaned_content,
         pages_removed: request.remove_pages,
