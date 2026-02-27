@@ -8,9 +8,12 @@ import { getPdfUrl, getExportZipUrl } from "@/lib/api";
 import {
   parseMarkdownSections,
   reassembleMarkdown,
+  type MarkdownSection,
 } from "@/lib/markdownSections";
 import SectionPanel from "@/components/SectionPanel";
 import MarkdownEditor from "@/components/MarkdownEditor";
+import SearchBar from "@/components/SearchBar";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
 // pdf.js cannot run server-side
 const PdfViewer = dynamic(() => import("@/components/PdfViewer"), {
@@ -23,6 +26,8 @@ const PdfViewer = dynamic(() => import("@/components/PdfViewer"), {
 });
 
 type Mode = "sections" | "editor";
+
+const MAX_UNDO = 50;
 
 export default function ReviewPage({
   params,
@@ -38,6 +43,13 @@ export default function ReviewPage({
   const [editedMarkdown, setEditedMarkdown] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [dividerPos, setDividerPos] = useState(50); // percentage
+
+  // New state for improvements
+  const [editingSectionPage, setEditingSectionPage] = useState<number | null>(null);
+  const [undoStack, setUndoStack] = useState<string[]>([]);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [caseSensitive, setCaseSensitive] = useState(false);
 
   // Sync source: "left" = PDF triggered, "right" = sections triggered, null = none
   const syncSourceRef = useRef<string | null>(null);
@@ -72,13 +84,49 @@ export default function ReviewPage({
     setActivePage(page);
   }, []);
 
+  // Push to undo stack before mutation
+  const pushUndo = useCallback((md: string) => {
+    setUndoStack((prev) => {
+      const next = [...prev, md];
+      return next.length > MAX_UNDO ? next.slice(next.length - MAX_UNDO) : next;
+    });
+  }, []);
+
   const handleDeleteSection = useCallback(
     (pageNumber: number) => {
+      pushUndo(markdown);
       const remaining = sections.filter((s) => s.pageNumber !== pageNumber);
       const newMarkdown = reassembleMarkdown(remaining);
       setEditedMarkdown(newMarkdown);
     },
-    [sections]
+    [sections, markdown, pushUndo]
+  );
+
+  const handleEditSection = useCallback(
+    (pageNumber: number, newRawContent: string) => {
+      pushUndo(markdown);
+      const updated = sections.map((s) => {
+        if (s.pageNumber !== pageNumber) return s;
+        // Rebuild section content: header + separator + new content
+        const newContent = s.header
+          ? `${s.header}\n---\n${newRawContent}`
+          : newRawContent;
+        return { ...s, content: newContent, rawContent: newRawContent };
+      });
+      const newMarkdown = reassembleMarkdown(updated);
+      setEditedMarkdown(newMarkdown);
+      setEditingSectionPage(null);
+    },
+    [sections, markdown, pushUndo]
+  );
+
+  const handleReorderSections = useCallback(
+    (reordered: MarkdownSection[]) => {
+      pushUndo(markdown);
+      const newMarkdown = reassembleMarkdown(reordered);
+      setEditedMarkdown(newMarkdown);
+    },
+    [markdown, pushUndo]
   );
 
   const handleSave = useCallback(
@@ -92,6 +140,32 @@ export default function ReviewPage({
   const handleSaveSections = useCallback(() => {
     saveMutation.mutate({ jobId: id, markdown });
   }, [id, markdown, saveMutation]);
+
+  const handleSaveShortcut = useCallback(() => {
+    saveMutation.mutate({ jobId: id, markdown });
+  }, [id, markdown, saveMutation]);
+
+  const handleUndo = useCallback(() => {
+    setUndoStack((prev) => {
+      if (prev.length === 0) return prev;
+      const next = [...prev];
+      const last = next.pop()!;
+      setEditedMarkdown(last);
+      return next;
+    });
+  }, []);
+
+  const handleToggleSearch = useCallback(() => {
+    setShowSearch((prev) => !prev);
+  }, []);
+
+  const handleSearchReplace = useCallback(
+    (newMarkdown: string) => {
+      pushUndo(markdown);
+      setEditedMarkdown(newMarkdown);
+    },
+    [markdown, pushUndo]
+  );
 
   // Divider drag handlers
   const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
@@ -129,6 +203,20 @@ export default function ReviewPage({
   const hasEdits =
     editedMarkdown !== null && editedMarkdown !== results?.markdown;
 
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onSave: handleSaveShortcut,
+    onToggleSearch: handleToggleSearch,
+    onUndo: handleUndo,
+    hasEdits,
+  });
+
+  // Track searchQuery/caseSensitive from SearchBar for highlight pass-through
+  const handleSearchClose = useCallback(() => {
+    setShowSearch(false);
+    setSearchQuery("");
+  }, []);
+
   if (isLoading) {
     return (
       <div className="fixed inset-0 top-[64px] flex items-center justify-center bg-white">
@@ -155,6 +243,11 @@ export default function ReviewPage({
         <div className="flex items-center gap-4">
           <Link
             href={`/results/${id}`}
+            onClick={(e) => {
+              if (hasEdits && !confirm("You have unsaved changes. Leave this page?")) {
+                e.preventDefault();
+              }
+            }}
             className="text-sm text-slate-500 hover:text-indigo-600 transition-colors"
           >
             &larr; Results
@@ -240,6 +333,30 @@ export default function ReviewPage({
               </svg>
             </button>
           </div>
+
+          {/* Undo button */}
+          {undoStack.length > 0 && (
+            <button
+              onClick={handleUndo}
+              className="px-2.5 py-1 text-xs font-medium text-slate-500 hover:text-slate-700 border border-slate-200 rounded transition-colors"
+              title="Undo (Ctrl+Z)"
+            >
+              Undo
+            </button>
+          )}
+
+          {/* Search toggle */}
+          <button
+            onClick={handleToggleSearch}
+            className={`px-2.5 py-1 text-xs font-medium border rounded transition-colors ${
+              showSearch
+                ? "text-indigo-700 border-indigo-300 bg-indigo-50"
+                : "text-slate-500 hover:text-slate-700 border-slate-200"
+            }`}
+            title="Search (Ctrl+F)"
+          >
+            Search
+          </button>
 
           {/* Save button (for section mode) */}
           {mode === "sections" && hasEdits && (
@@ -335,24 +452,43 @@ export default function ReviewPage({
         {/* Right: Sections or Editor */}
         <div
           style={{ width: `${100 - dividerPos}%` }}
-          className="h-full overflow-hidden"
+          className="h-full overflow-hidden flex flex-col"
         >
-          {mode === "sections" ? (
-            <SectionPanel
-              sections={sections}
-              trash={results.trash || []}
-              activePage={activePage}
-              onPageChange={handlePageChange}
-              onDeleteSection={handleDeleteSection}
-              syncSource={syncSourceRef}
-            />
-          ) : (
-            <MarkdownEditor
-              markdown={markdown}
-              onSave={handleSave}
-              isSaving={saveMutation.isPending}
-            />
-          )}
+          {/* Search bar (shown in both modes) */}
+          <SearchBar
+            visible={showSearch}
+            onClose={handleSearchClose}
+            markdown={markdown}
+            onReplace={handleSearchReplace}
+            onQueryChange={setSearchQuery}
+            onCaseSensitiveChange={setCaseSensitive}
+          />
+
+          <div className="flex-1 overflow-hidden">
+            {mode === "sections" ? (
+              <SectionPanel
+                sections={sections}
+                trash={results.trash || []}
+                activePage={activePage}
+                onPageChange={handlePageChange}
+                onDeleteSection={handleDeleteSection}
+                syncSource={syncSourceRef}
+                editingSectionPage={editingSectionPage}
+                onStartEdit={setEditingSectionPage}
+                onCancelEdit={() => setEditingSectionPage(null)}
+                onEditSection={handleEditSection}
+                onReorderSections={handleReorderSections}
+                highlightQuery={showSearch ? searchQuery : undefined}
+                highlightCaseSensitive={caseSensitive}
+              />
+            ) : (
+              <MarkdownEditor
+                markdown={markdown}
+                onSave={handleSave}
+                isSaving={saveMutation.isPending}
+              />
+            )}
+          </div>
         </div>
       </div>
     </div>
