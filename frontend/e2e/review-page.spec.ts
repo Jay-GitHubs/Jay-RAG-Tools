@@ -126,11 +126,11 @@ test.describe("Review Page", () => {
       const nextBtn = page.locator('button:has(path[d*="m8.25 4.5"])');
       if (await nextBtn.isEnabled()) {
         await nextBtn.click();
-        await page.waitForTimeout(500);
 
-        const newText = await pageIndicator.textContent();
-        // Page number should have changed
-        expect(newText).not.toBe(initialText);
+        // Wait for the page indicator text to change
+        await expect(pageIndicator).not.toHaveText(initialText!, {
+          timeout: 5000,
+        });
       }
     }
   });
