@@ -150,7 +150,7 @@ export default function PipelineConfig({
         <p className="text-xs text-slate-500">
           {config.quality === "high"
             ? "Default: 300 DPI (high mode floor). Values above 300 are used as-is."
-            : "Default: 150 DPI. Higher values improve small text / Thai diacritics accuracy."}
+            : "Default: 150 DPI (auto 200 for Thai). Higher values improve small text accuracy."}
         </p>
       </div>
 

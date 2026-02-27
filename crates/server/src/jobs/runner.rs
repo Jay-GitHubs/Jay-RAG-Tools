@@ -130,7 +130,14 @@ pub async fn run_job(
         table_extraction: if text_only { false } else { table_extraction },
         text_only,
         quality,
-        image_dpi: dpi.unwrap_or(150),
+        image_dpi: match dpi {
+            Some(d) => d,
+            None if lang == Language::Th => {
+                tracing::info!("Thai language selected — auto DPI upgrade: 150 → 200");
+                200
+            }
+            None => 150,
+        },
         enhance,
         ..Default::default()
     };

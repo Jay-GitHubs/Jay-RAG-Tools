@@ -78,6 +78,10 @@ struct ProcessArgs {
     #[arg(long, default_value = "standard", value_parser = ["standard", "high"])]
     quality: String,
 
+    /// Image DPI (default: 150, auto 200 for Thai)
+    #[arg(long)]
+    dpi: Option<u32>,
+
     /// Auto-strip detected trash pages from output (creates _cleaned.md).
     /// Optionally filter by type: toc,boilerplate,blank
     #[arg(long, value_name = "TYPES")]
@@ -170,6 +174,15 @@ async fn run_process(args: ProcessArgs) -> Result<()> {
     let lang: Language = args.lang.parse().unwrap_or_default();
     let quality: Quality = args.quality.parse().unwrap_or_default();
 
+    let image_dpi = match args.dpi {
+        Some(d) => d,
+        None if lang == Language::Th => {
+            println!("  Thai language — auto DPI: 200");
+            200
+        }
+        None => 150,
+    };
+
     let config = ProcessingConfig {
         language: lang,
         table_extraction: !args.no_tables && !args.text_only,
@@ -177,6 +190,7 @@ async fn run_process(args: ProcessArgs) -> Result<()> {
         max_concurrent_pages: args.concurrency,
         detect_trash: !args.no_detect_trash,
         quality,
+        image_dpi,
         ..Default::default()
     };
 
