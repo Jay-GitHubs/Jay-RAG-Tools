@@ -117,6 +117,10 @@ pub struct ProcessingConfig {
     /// Processing quality level (default: standard).
     #[serde(default)]
     pub quality: Quality,
+
+    /// Sharpen + contrast enhancement for better Thai OCR (default: false).
+    #[serde(default)]
+    pub enhance: bool,
 }
 
 fn default_concurrent_pages() -> usize {
@@ -146,6 +150,7 @@ impl Default for ProcessingConfig {
             max_concurrent_images: default_concurrent_images(),
             detect_trash: true,
             quality: Quality::default(),
+            enhance: false,
         }
     }
 }

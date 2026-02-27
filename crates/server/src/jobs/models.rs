@@ -43,6 +43,8 @@ pub struct JobConfig {
     pub dpi: Option<u32>,
     #[serde(default = "default_true")]
     pub notify: bool,
+    #[serde(default)]
+    pub enhance: bool,
 }
 
 fn default_true() -> bool {

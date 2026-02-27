@@ -68,6 +68,7 @@ pub async fn upload_pdf(
             quality: "standard".to_string(),
             dpi: None,
             notify: true,
+            enhance: false,
         },
     };
 
@@ -99,6 +100,7 @@ pub async fn upload_pdf(
     let text_only = config.text_only;
     let quality = config.quality.clone();
     let dpi = config.dpi;
+    let enhance = config.enhance;
     let task_handles = state.task_handles.clone();
 
     let handle = tokio::spawn(async move {
@@ -116,6 +118,7 @@ pub async fn upload_pdf(
             text_only,
             quality,
             dpi,
+            enhance,
         )
         .await;
 

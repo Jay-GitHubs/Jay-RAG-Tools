@@ -26,6 +26,7 @@ export default function UploadPage() {
     s3_prefix: "",
     storage_path: "",
     notify: true,
+    enhance: false,
   });
 
   const handleSubmit = async () => {

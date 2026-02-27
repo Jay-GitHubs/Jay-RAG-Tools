@@ -116,6 +116,7 @@ pub async fn run_job(
     text_only: bool,
     quality: String,
     dpi: Option<u32>,
+    enhance: bool,
 ) {
     queue
         .update_status(&job_id, JobStatus::Processing)
@@ -130,6 +131,7 @@ pub async fn run_job(
         text_only,
         quality,
         image_dpi: dpi.unwrap_or(150),
+        enhance,
         ..Default::default()
     };
 

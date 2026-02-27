@@ -18,6 +18,7 @@ interface PipelineConfigProps {
     s3_prefix: string;
     storage_path: string;
     notify: boolean;
+    enhance: boolean;
   };
   onChange: (config: PipelineConfigProps["config"]) => void;
 }
@@ -322,6 +323,30 @@ export default function PipelineConfig({
         <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">
           Enable table extraction
         </span>
+      </label>
+
+      {/* Image enhancement toggle */}
+      <label className={`flex items-center gap-3 cursor-pointer group${config.text_only ? " opacity-50 pointer-events-none" : ""}`}>
+        <div className="relative">
+          <input
+            type="checkbox"
+            checked={config.enhance}
+            onChange={(e) =>
+              onChange({ ...config, enhance: e.target.checked })
+            }
+            className="sr-only peer"
+          />
+          <div className="w-9 h-5 bg-slate-300 rounded-full peer-checked:bg-indigo-600 transition-colors" />
+          <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-sm peer-checked:translate-x-4 transition-transform" />
+        </div>
+        <div>
+          <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">
+            Image enhancement
+          </span>
+          <p className="text-xs text-slate-500">
+            Sharpen + boost contrast for small Thai text and diacritics
+          </p>
+        </div>
       </label>
 
       {/* Notify toggle */}

@@ -248,7 +248,7 @@ fn extract_page_data(
     // High Quality mode: render every page at 300+ DPI for Vision LLM OCR
     if config.quality == Quality::High {
         let dpi = config.image_dpi.max(300);
-        let (img_b64, img_bytes) = PdfEngine::render_page_as_image(&page, dpi)?;
+        let (img_b64, img_bytes) = PdfEngine::render_page_as_image(&page, dpi, config.enhance)?;
         let img_filename = format!("{doc_stem}_page_{:03}_hq.png", page_num + 1);
         let text = PdfEngine::extract_page_text(&page);
         let text = cleanup_extracted_text(&text);
@@ -264,7 +264,7 @@ fn extract_page_data(
     let coverage = PdfEngine::get_image_coverage(&page);
     // Strategy A: Image-heavy page (hybrid: also extract text)
     if coverage >= config.page_as_image_threshold {
-        let (img_b64, img_bytes) = PdfEngine::render_page_as_image(&page, config.image_dpi)?;
+        let (img_b64, img_bytes) = PdfEngine::render_page_as_image(&page, config.image_dpi, config.enhance)?;
         let img_filename = format!("{doc_stem}_page_{:03}_full.png", page_num + 1);
         let text = PdfEngine::extract_page_text(&page);
         let text = cleanup_extracted_text(&text);
@@ -281,12 +281,12 @@ fn extract_page_data(
     else {
         let text = PdfEngine::extract_page_text(&page);
         let text = cleanup_extracted_text(&text);
-        let images = PdfEngine::extract_page_images(&page, config.min_image_size)?;
+        let images = PdfEngine::extract_page_images(&page, config.min_image_size, config.enhance)?;
 
         // Table detection (check if text looks tabular)
         let table_candidate = config.table_extraction && crate::table::looks_like_table(&text);
         let table_img = if table_candidate {
-            let (b64, bytes) = PdfEngine::render_page_as_image(&page, config.image_dpi)?;
+            let (b64, bytes) = PdfEngine::render_page_as_image(&page, config.image_dpi, config.enhance)?;
             let filename = format!("{doc_stem}_page_{:03}_table.png", page_num + 1);
             Some((b64, bytes, filename))
         } else {

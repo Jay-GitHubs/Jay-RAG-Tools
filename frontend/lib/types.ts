@@ -15,6 +15,7 @@ export interface JobConfig {
   quality?: string;
   dpi?: number;
   notify?: boolean;
+  enhance?: boolean;
 }
 
 export interface JobProgress {

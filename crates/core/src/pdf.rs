@@ -18,6 +18,14 @@ pub struct ExtractedImage {
     pub index: u32,
 }
 
+/// Apply sharpening and contrast enhancement to improve Thai OCR accuracy.
+///
+/// - `adjust_contrast(20.0)`: moderate boost — darkens text, lightens background.
+/// - `unsharpen(1.5, 3)`: sigma 1.5 / threshold 3 — sharpens diacritics and thin strokes.
+fn enhance_image(img: DynamicImage) -> DynamicImage {
+    img.adjust_contrast(20.0).unsharpen(1.5, 3)
+}
+
 /// Wrapper around the pdfium library for PDF operations.
 pub struct PdfEngine {
     pdfium: Pdfium,
@@ -80,8 +88,13 @@ impl PdfEngine {
 
     /// Render an entire page as a PNG image at the given DPI.
     ///
+    /// When `enhance` is true, applies sharpening + contrast boost before encoding.
     /// Returns (base64_string, raw_png_bytes).
-    pub fn render_page_as_image(page: &PdfPage, dpi: u32) -> CoreResult<(String, Vec<u8>)> {
+    pub fn render_page_as_image(
+        page: &PdfPage,
+        dpi: u32,
+        enhance: bool,
+    ) -> CoreResult<(String, Vec<u8>)> {
         let scale = dpi as f32 / 72.0;
         let width = (page.width().value * scale) as i32;
         let height = (page.height().value * scale) as i32;
@@ -94,7 +107,10 @@ impl PdfEngine {
             .render_with_config(&config)
             .map_err(|e| CoreError::Image(format!("Failed to render page: {e}")))?;
 
-        let img: DynamicImage = bitmap.as_image();
+        let mut img: DynamicImage = bitmap.as_image();
+        if enhance {
+            img = enhance_image(img);
+        }
 
         let mut png_bytes = Vec::new();
         let mut cursor = std::io::Cursor::new(&mut png_bytes);
@@ -116,9 +132,12 @@ impl PdfEngine {
     }
 
     /// Extract individual images from a page, filtering by minimum size.
+    ///
+    /// When `enhance` is true, applies sharpening + contrast boost before encoding.
     pub fn extract_page_images(
         page: &PdfPage,
         min_size: u32,
+        enhance: bool,
     ) -> CoreResult<Vec<ExtractedImage>> {
         let mut images = Vec::new();
         let mut idx: u32 = 0;
@@ -132,7 +151,7 @@ impl PdfEngine {
                 continue;
             };
 
-            let raw_image: DynamicImage = match image_object.get_raw_image() {
+            let mut raw_image: DynamicImage = match image_object.get_raw_image() {
                 Ok(img) => img,
                 Err(_) => continue,
             };
@@ -145,6 +164,10 @@ impl PdfEngine {
             }
 
             idx += 1;
+
+            if enhance {
+                raw_image = enhance_image(raw_image);
+            }
 
             let mut png_bytes = Vec::new();
             let mut cursor = std::io::Cursor::new(&mut png_bytes);

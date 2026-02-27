@@ -68,6 +68,10 @@ export default function JobDetailPage({
             <span className="font-medium text-slate-900">{job.config.dpi ?? "default"}</span>
           </div>
           <div>
+            <span className="text-slate-500">Enhance:</span>{" "}
+            <span className="font-medium text-slate-900">{job.config.enhance ? "on" : "off"}</span>
+          </div>
+          <div>
             <span className="text-slate-500">Created:</span>{" "}
             <span className="font-medium text-slate-900">{formatDateTime(job.created_at)}</span>
           </div>

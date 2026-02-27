@@ -337,5 +337,6 @@ fn default_config() -> JobConfig {
         quality: "standard".to_string(),
         dpi: None,
         notify: true,
+        enhance: false,
     }
 }
