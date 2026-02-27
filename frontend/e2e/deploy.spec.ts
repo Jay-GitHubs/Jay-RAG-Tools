@@ -141,6 +141,27 @@ test.describe("Deploy to RAG Platform", () => {
     await expect(page.getByPlaceholder("abc-123-def-456")).toBeVisible();
   });
 
+  test("AnythingLLM fields appear when AnythingLLM target is selected", async ({
+    page,
+  }) => {
+    await page.goto(`/results/${jobId}`);
+    await expect(page.getByRole("heading", { name: "Results" })).toBeVisible({
+      timeout: 10_000,
+    });
+
+    await page.getByRole("button", { name: "Deploy" }).click();
+
+    // Select Markdown target: AnythingLLM
+    const mdSelect = page
+      .locator("fieldset", { hasText: "Markdown Deployment" })
+      .getByRole("combobox");
+    await mdSelect.selectOption("anythingllm");
+
+    // AnythingLLM-specific fields should appear
+    await expect(page.getByPlaceholder("AnythingLLM API key")).toBeVisible();
+    await expect(page.getByPlaceholder("thai-device-manual")).toBeVisible();
+  });
+
   test("S3 fields appear when S3 image target is selected", async ({
     page,
   }) => {

@@ -1,7 +1,7 @@
 use std::path::Path;
 use tracing::info;
 
-use crate::deploy::flowise;
+use crate::deploy::{anythingllm, flowise};
 use crate::routes::deploy::MarkdownTarget;
 
 /// Deploy converted markdown to the chosen target. Returns a summary string.
@@ -19,6 +19,11 @@ pub async fn deploy_markdown(
             api_key,
             store_id,
         } => flowise::upsert_document(base_url, api_key, store_id, markdown).await,
+        MarkdownTarget::AnythingLlm {
+            base_url,
+            api_key,
+            workspace,
+        } => anythingllm::upload_document(base_url, api_key, workspace, markdown, doc_stem).await,
     }
 }
 
