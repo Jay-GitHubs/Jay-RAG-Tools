@@ -115,7 +115,7 @@ export interface CleanResponse {
 // Deploy types
 
 export type ImageTargetType = "local_folder" | "s3" | "scp";
-export type MarkdownTargetType = "local_folder" | "flowise";
+export type MarkdownTargetType = "local_folder" | "flowise" | "anythingllm";
 
 export type ImageTarget =
   | { type: "local_folder"; path: string }
@@ -124,7 +124,8 @@ export type ImageTarget =
 
 export type MarkdownTarget =
   | { type: "local_folder"; path: string }
-  | { type: "flowise"; base_url: string; api_key: string; store_id: string };
+  | { type: "flowise"; base_url: string; api_key: string; store_id: string }
+  | { type: "anythingllm"; base_url: string; api_key: string; workspace: string };
 
 export interface DeployRequest {
   image_base_url: string;

@@ -44,6 +44,11 @@ pub enum MarkdownTarget {
         api_key: String,
         store_id: String,
     },
+    AnythingLlm {
+        base_url: String,
+        api_key: String,
+        workspace: String,
+    },
 }
 
 #[derive(Serialize)]
@@ -148,5 +153,6 @@ fn md_target_type(target: &MarkdownTarget) -> String {
     match target {
         MarkdownTarget::LocalFolder { .. } => "local_folder".to_string(),
         MarkdownTarget::Flowise { .. } => "flowise".to_string(),
+        MarkdownTarget::AnythingLlm { .. } => "anythingllm".to_string(),
     }
 }

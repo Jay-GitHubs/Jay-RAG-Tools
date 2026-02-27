@@ -54,6 +54,11 @@ export default function DeployModal({
   const [mdFlowiseApiKey, setMdFlowiseApiKey] = useState("");
   const [mdFlowiseStoreId, setMdFlowiseStoreId] = useState("");
 
+  // AnythingLLM
+  const [mdAnythingUrl, setMdAnythingUrl] = useState("http://localhost:3001");
+  const [mdAnythingApiKey, setMdAnythingApiKey] = useState("");
+  const [mdAnythingWorkspace, setMdAnythingWorkspace] = useState("");
+
   function buildImageTarget(): ImageTarget | undefined {
     if (!imageTargetType) return undefined;
     switch (imageTargetType) {
@@ -90,6 +95,13 @@ export default function DeployModal({
           api_key: mdFlowiseApiKey,
           store_id: mdFlowiseStoreId,
         };
+      case "anythingllm":
+        return {
+          type: "anythingllm",
+          base_url: mdAnythingUrl,
+          api_key: mdAnythingApiKey,
+          workspace: mdAnythingWorkspace,
+        };
     }
   }
 
@@ -111,6 +123,13 @@ export default function DeployModal({
       (!mdFlowiseUrl.trim() ||
         !mdFlowiseApiKey.trim() ||
         !mdFlowiseStoreId.trim())
+    )
+      return false;
+    if (
+      mdTargetType === "anythingllm" &&
+      (!mdAnythingUrl.trim() ||
+        !mdAnythingApiKey.trim() ||
+        !mdAnythingWorkspace.trim())
     )
       return false;
     return true;
@@ -342,6 +361,7 @@ export default function DeployModal({
                   <option value="">Skip markdown deployment</option>
                   <option value="local_folder">Local Folder</option>
                   <option value="flowise">Flowise Document Store</option>
+                  <option value="anythingllm">AnythingLLM Workspace</option>
                 </select>
               </div>
 
@@ -387,6 +407,41 @@ export default function DeployModal({
                       value={mdFlowiseStoreId}
                       onChange={(e) => setMdFlowiseStoreId(e.target.value)}
                       placeholder="abc-123-def-456"
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {mdTargetType === "anythingllm" && (
+                <div className="space-y-2">
+                  <div>
+                    <label className={labelClass}>AnythingLLM Base URL *</label>
+                    <input
+                      type="text"
+                      value={mdAnythingUrl}
+                      onChange={(e) => setMdAnythingUrl(e.target.value)}
+                      placeholder="http://localhost:3001"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>API Key *</label>
+                    <input
+                      type="password"
+                      value={mdAnythingApiKey}
+                      onChange={(e) => setMdAnythingApiKey(e.target.value)}
+                      placeholder="AnythingLLM API key"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Workspace Slug *</label>
+                    <input
+                      type="text"
+                      value={mdAnythingWorkspace}
+                      onChange={(e) => setMdAnythingWorkspace(e.target.value)}
+                      placeholder="thai-device-manual"
                       className={inputClass}
                     />
                   </div>
